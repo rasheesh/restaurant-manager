@@ -1,4 +1,4 @@
-"use client";
+"use client"
 
 import { useState, useEffect } from "react"
 import AuthGuard from "../../../components/auth/auth-guard"
@@ -15,66 +15,9 @@ interface User {
 }
 
 export default function UserManagement() {
-  const [mounted, setMounted] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    setMounted(true);
-
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      setUser(JSON.parse(userData));
-    }
-  }, []);
-
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: "1",
-      email: "admin@foodbusiness.com",
-      role: "admin",
-      branch: "all",
-      status: "active",
-      lastLogin: "2024-01-15 10:30 AM",
-      name: "John Doe",
-    },
-    {
-      id: "2",
-      email: "manager.makati@foodbusiness.com",
-      role: "manager",
-      branch: "makati",
-      status: "active",
-      lastLogin: "2024-01-15 09:15 AM",
-      name: "Jane Smith",
-    },
-    {
-      id: "3",
-      email: "manager.qc@foodbusiness.com",
-      role: "manager",
-      branch: "qc",
-      status: "active",
-      lastLogin: "2024-01-14 06:45 PM",
-      name: "Alice Johnson",
-    },
-    {
-      id: "4",
-      email: "cashier1.makati@foodbusiness.com",
-      role: "cashier",
-      branch: "makati",
-      status: "active",
-      lastLogin: "2024-01-15 08:00 AM",
-      name: "Bob Brown",
-    },
-    {
-      id: "5",
-      email: "cashier2.makati@foodbusiness.com",
-      role: "cashier",
-      branch: "makati",
-      status: "inactive",
-      lastLogin: "2024-01-10 05:30 PM",
-      name: "Charlie Davis",
-    },
-  ])
-
+  const [mounted, setMounted] = useState(false)
+  const [user, setUser] = useState<User | null>(null)
+  const [users, setUsers] = useState<User[]>([])
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [newUser, setNewUser] = useState({
@@ -84,15 +27,65 @@ export default function UserManagement() {
     branch: "makati",
     password: "",
   })
-
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
 
+  const roleMap: any = {
+  1: "admin",
+  2: "manager",
+  3: "cashier",
+}
+
+const branchMap: any = {
+  1: "makati",
+  2: "qc",
+  3: "cebu",
+  99: "all",
+}
+
+// 🔹 Load current user + fetch users from backend
+useEffect(() => {
+  setMounted(true)
+  const userData = localStorage.getItem("user")
+  if (userData) setUser(JSON.parse(userData))
+
+  fetchUsers()
+}, [])
+
+const fetchUsers = async () => {
+  try {
+    const res = await fetch("/api/users")
+    const data = await res.json()
+
+    setUsers(
+      data.map((u: any) => {
+        let lastLoginFormatted = "Never"
+        if (u.last_login) {
+          const date = new Date(u.last_login)
+          lastLoginFormatted = isNaN(date.getTime())
+            ? "Never"
+            : date.toLocaleString("en-US", { timeZone: "Asia/Manila" })
+        }
+        return {
+          id: u.id.toString(),
+          name: u.name || "N/A",
+          email: u.email,
+          role: roleMap[u.role_id] || "cashier",
+          branch: branchMap[u.branch_id] || "makati",
+          status: u.status_id === 1 ? "active" : "inactive",
+          lastLogin: lastLoginFormatted,
+        }
+      })
+    )
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+  // 🔹 Form validation
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {}
 
-    if (!newUser.name.trim()) {
-      newErrors.name = "User name is required"
-    }
+    if (!newUser.name.trim()) newErrors.name = "User name is required"
 
     if (!newUser.email.trim()) {
       newErrors.email = "Email is required"
@@ -106,34 +99,38 @@ export default function UserManagement() {
       newErrors.password = "Password must be at least 6 characters"
     }
 
-    // Check for duplicate email
     const existingUser = users.find((u) => u.email === newUser.email && u.id !== editingUser?.id)
-    if (existingUser) {
-      newErrors.email = "Email already exists"
-    }
+    if (existingUser) newErrors.email = "Email already exists"
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
-  const handleAddUser = () => {
+  // 🔹 Add User
+  const handleAddUser = async () => {
     if (!validateForm()) return
+    try {
+      const res = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newUser),
+      })
+      const data = await res.json()
+      if (!res.ok) return alert(data.error)
 
-    const user: User = {
-      id: Date.now().toString(),
-      name: newUser.name,
-      email: newUser.email,
-      role: newUser.role,
-      branch: newUser.branch,
-      status: "active",
-      lastLogin: "Never",
+      setUsers([
+        ...users,
+        { id: data.id.toString(), ...newUser, status: "active", lastLogin: "Never" },
+      ])
+
+      setNewUser({ name: "", email: "", role: "cashier", branch: "makati", password: "" })
+      setShowAddModal(false)
+    } catch (err) {
+      console.error(err)
     }
-    setUsers([...users, user])
-    setNewUser({ name: "", email: "", role: "cashier", branch: "makati", password: "" })
-    setErrors({})
-    setShowAddModal(false)
   }
 
+  // 🔹 Edit User (fill modal)
   const handleEditUser = (user: User) => {
     setEditingUser(user)
     setNewUser({
@@ -147,30 +144,27 @@ export default function UserManagement() {
     setShowAddModal(true)
   }
 
-  const handleUpdateUser = () => {
-    if (!validateForm()) return
+  // 🔹 Update User
+  const handleUpdateUser = async () => {
+    if (!validateForm() || !editingUser) return
+    try {
+      const res = await fetch("/api/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editingUser.id, ...newUser }),
+      })
+      const data = await res.json()
+      if (!res.ok) return alert(data.error)
 
-    if (editingUser) {
-      setUsers(
-        users.map((u) =>
-          u.id === editingUser.id
-            ? {
-              ...u,
-              name: newUser.name,
-              email: newUser.email,
-              role: newUser.role,
-              branch: newUser.branch,
-            }
-            : u,
-        ),
-      )
-      setEditingUser(null)
-      setNewUser({ name: "", email: "", role: "cashier", branch: "makati", password: "" })
-      setErrors({})
+      setUsers(users.map((u) => (u.id === editingUser.id ? { ...u, ...newUser } : u)))
       setShowAddModal(false)
+      setEditingUser(null)
+    } catch (err) {
+      console.error(err)
     }
   }
 
+  // 🔹 Close modal
   const handleCloseModal = () => {
     setShowAddModal(false)
     setEditingUser(null)
@@ -178,44 +172,63 @@ export default function UserManagement() {
     setErrors({})
   }
 
-  const toggleUserStatus = (userId: string) => {
-    setUsers(
-      users.map((u) =>
-        u.id === userId
-          ? {
-            ...u,
-            status: u.status === "active" ? "inactive" : "active",
-          }
-          : u,
-      ),
-    )
+  // 🔹 Toggle Status
+  const toggleUserStatus = async (userId: string) => {
+    const user = users.find((u) => u.id === userId)
+    if (!user) return
+    const newStatus = user.status === "active" ? "inactive" : "active"
+
+    try {
+      const res = await fetch("/api/users", {
+  method: "PATCH",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ id: userId, status: newStatus }),
+})
+      const data = await res.json()
+      if (!res.ok) return alert(data.error)
+
+      setUsers(
+        users.map((u) =>
+          u.id === userId ? { ...u, status: newStatus } : u
+        )
+      )
+    } catch (err) {
+      console.error(err)
+    }
   }
 
+  // 🔹 Loading state
   if (!mounted || !user) {
     return (
-      <div style={{
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        height: "100vh",
-        background: "#f8f9fa"
-      }}>
-        <div style={{
-          background: "white",
-          padding: "40px",
-          borderRadius: "8px",
-          boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-          textAlign: "center"
-        }}>
-          <div style={{
-            width: "40px",
-            height: "40px",
-            border: "4px solid #e9ecef",
-            borderTop: "4px solid #2d5a27",
-            borderRadius: "50%",
-            animation: "spin 1s linear infinite",
-            margin: "0 auto 20px"
-          }}></div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+          background: "#f8f9fa",
+        }}
+      >
+        <div
+          style={{
+            background: "white",
+            padding: "40px",
+            borderRadius: "8px",
+            boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+            textAlign: "center",
+          }}
+        >
+          <div
+            style={{
+              width: "40px",
+              height: "40px",
+              border: "4px solid #e9ecef",
+              borderTop: "4px solid #2d5a27",
+              borderRadius: "50%",
+              animation: "spin 1s linear infinite",
+              margin: "0 auto 20px",
+            }}
+          ></div>
           <p style={{ color: "#6c757d", margin: 0 }}>Loading...</p>
         </div>
       </div>

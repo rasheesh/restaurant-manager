@@ -13,28 +13,43 @@ export default function LoginPage() {
   const router = useRouter()
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+  e.preventDefault()
+  setLoading(true)
 
-    // Simulate login process
-    setTimeout(() => {
-      // Store user data in localStorage for demo
-      const userData = {
-        email,
-        branch,
-        role: email.includes("admin") ? "admin" : email.includes("manager") ? "manager" : "cashier",
-      }
-      localStorage.setItem("user", JSON.stringify(userData))
+  try {
+    const res = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, branch })
+    })
 
-      // Redirect based on role
-      if (userData.role === "cashier") {
-        router.push("/pos")
-      } else {
-        router.push("/dashboard")
-      }
+    const data = await res.json()
+
+    if (!res.ok) {
+      alert(data.error || "Login failed")
       setLoading(false)
-    }, 1000)
+      return
+    }
+
+    // Save session (localStorage for now, but can use JWT/NextAuth later)
+    localStorage.setItem("user", JSON.stringify(data.user))
+
+    // Redirect
+    // Redirect
+if (data.user.role === "cashier") {
+  router.push("/pos")
+} else {
+  router.push("/dashboard")
+}
+
+  } catch (error) {
+    console.error(error)
+    alert("Something went wrong")
+  } finally {
+    setLoading(false)
   }
+}
+
 
   return (
     <div className="login-container">
