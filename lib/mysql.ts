@@ -1,9 +1,10 @@
 import mysql from 'mysql2/promise'
 
-const databaseUrl = process.env.DATABASE_URL
+// Prefer MYSQL_URL if provided, fallback to DATABASE_URL for backward compatibility
+const databaseUrl = process.env.MYSQL_URL || process.env.DATABASE_URL
 
 if (!databaseUrl) {
-    throw new Error('DATABASE_URL is not set in environment variables')
+    throw new Error('MYSQL_URL or DATABASE_URL must be set in environment variables')
 }
 
 export const pool = mysql.createPool({

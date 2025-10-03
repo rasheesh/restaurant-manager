@@ -15,7 +15,7 @@ services:
   app:
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=${DATABASE_URL}
+      - MYSQL_URL=${MYSQL_URL}
     # Remove port exposure if using reverse proxy
     # ports: []
     restart: always
