@@ -116,13 +116,13 @@ export default function LoginPage() {
         >
           <strong>Demo Accounts:</strong>
           <br />
-          <strong>Admin:</strong> admin@kamayan.com
+          <strong>Admin:</strong> adminexxa@gmail.com
           <br />
-          <strong>Manager:</strong> manager@kamayan.com
+          <strong>Manager:</strong> supervisortera@gmail.com
           <br />
-          <strong>Cashier:</strong> cashier@kamayan.com
+          <strong>Cashier:</strong> cashiercnx1@gmail.com
           <br />
-          <em>Password: any password</em>
+          <em>Password: "password"</em>
         </div>
       </div>
     </div>

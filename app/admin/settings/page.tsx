@@ -25,8 +25,6 @@ export default function SystemSettings() {
     autoBackup: true,
     emailNotifications: true,
     printReceipts: true,
-    allowDiscounts: true,
-    requireManagerApproval: false,
     comboMealPrice: "150",
   })
 
@@ -188,28 +186,6 @@ export default function SystemSettings() {
                       onChange={(e) => setSettings({ ...settings, printReceipts: e.target.checked })}
                     />
                     Automatically print receipts
-                  </label>
-                </div>
-
-                <div className="form-group checkbox-group">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={settings.allowDiscounts}
-                      onChange={(e) => setSettings({ ...settings, allowDiscounts: e.target.checked })}
-                    />
-                    Allow cashiers to apply discounts
-                  </label>
-                </div>
-
-                <div className="form-group checkbox-group">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={settings.requireManagerApproval}
-                      onChange={(e) => setSettings({ ...settings, requireManagerApproval: e.target.checked })}
-                    />
-                    Require manager approval for voids/refunds
                   </label>
                 </div>
               </div>

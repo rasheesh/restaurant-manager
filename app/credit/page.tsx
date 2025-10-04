@@ -37,6 +37,7 @@ export default function CreditPage() {
   const [user, setUser] = useState<User | null>(null)
   const [creditTransactions, setCreditTransactions] = useState<CreditTransaction[]>([])
   const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [selectedTransaction, setSelectedTransaction] = useState<CreditTransaction | null>(null)
   const [paymentAmount, setPaymentAmount] = useState<number>(0)
   const [paymentMethod, setPaymentMethod] = useState<string>("cash")
@@ -74,7 +75,10 @@ export default function CreditPage() {
         if (paid >= transaction.amount) return "paid"
         return "partial"
       })(),
-      payments: transaction.payments || [],
+      payments: (transaction.payments || []).map((payment: any) => ({
+        ...payment,
+        timestamp: new Date(payment.timestamp),
+      })),
     }))
     setCreditTransactions(processedTransactions)
   }
@@ -84,6 +88,11 @@ export default function CreditPage() {
     setPaymentAmount(0)
     setPaymentMethod("cash")
     setShowPaymentModal(true)
+  }
+
+  const openHistoryModal = (transaction: CreditTransaction) => {
+    setSelectedTransaction(transaction)
+    setShowHistoryModal(true)
   }
 
   const processPayment = () => {
@@ -309,17 +318,7 @@ export default function CreditPage() {
                               <button
                                 className="btn btn-secondary"
                                 style={{ padding: "4px 8px", fontSize: "12px" }}
-                                onClick={() => {
-                                  alert(
-                                    `Payment History for ${transaction.customerName}:\n\n` +
-                                      transaction.payments
-                                        .map(
-                                          (payment, index) =>
-                                            `${index + 1}. ₱${payment.amount.toFixed(2)} - ${payment.timestamp.toLocaleDateString("en-PH")} (${payment.method})`,
-                                        )
-                                        .join("\n"),
-                                  )
-                                }}
+                                onClick={() => openHistoryModal(transaction)}
                               >
                                 History
                               </button>
@@ -463,6 +462,89 @@ export default function CreditPage() {
                     disabled={paymentAmount <= 0 || paymentAmount > selectedTransaction.remainingBalance}
                   >
                     Record Payment
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Payment History Modal */}
+          {showHistoryModal && selectedTransaction && (
+            <div className="modal-overlay" onClick={() => setShowHistoryModal(false)}>
+              <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "800px", width: "90vw" }}>
+                <div className="modal-header">
+                  <h3>Payment History - {selectedTransaction.customerName}</h3>
+                  <button className="modal-close" onClick={() => setShowHistoryModal(false)}>
+                    ×
+                  </button>
+                </div>
+
+                <div className="modal-body">
+                  <div style={{ marginBottom: "20px", padding: "15px", background: "#f8f9fa", borderRadius: "6px" }}>
+                    <p style={{ margin: "0 0 5px 0", fontWeight: "600" }}>
+                      <strong>Order #:</strong> {selectedTransaction.orderNumber}
+                    </p>
+                    <p style={{ margin: "0 0 5px 0" }}>
+                      <strong>Total Amount:</strong> ₱{selectedTransaction.amount.toFixed(2)}
+                    </p>
+                    <p style={{ margin: "0 0 5px 0", fontWeight: "600", color: "#28a745" }}>
+                      <strong>Amount Paid:</strong> ₱{selectedTransaction.amountPaid.toFixed(2)}
+                    </p>
+                    <p style={{ margin: 0, fontWeight: "600", color: "#dc3545" }}>
+                      <strong>Remaining Balance:</strong> ₱{selectedTransaction.remainingBalance.toFixed(2)}
+                    </p>
+                  </div>
+
+                  <div>
+                    <h4 style={{ margin: "0 0 15px 0", color: "#2d5a27" }}>Payment History</h4>
+                    {selectedTransaction.payments.length > 0 ? (
+                      <div className="table-container">
+                        <table className="data-table">
+                          <thead>
+                            <tr>
+                              <th>#</th>
+                              <th>Amount</th>
+                              <th>Date</th>
+                              <th>Method</th>
+                              <th>Cashier</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedTransaction.payments.map((payment, index) => (
+                              <tr key={payment.id}>
+                                <td>{index + 1}</td>
+                                <td style={{ fontWeight: "600", color: "#28a745" }}>
+                                  ₱{payment.amount.toFixed(2)}
+                                </td>
+                                <td>{payment.timestamp.toLocaleDateString("en-PH", {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit"
+                                })}</td>
+                                <td>
+                                  <span className="status-badge success">
+                                    {payment.method.toUpperCase()}
+                                  </span>
+                                </td>
+                                <td>{payment.cashier}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p style={{ textAlign: "center", color: "#6c757d", fontStyle: "italic" }}>
+                        No payments recorded yet.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="modal-footer">
+                  <button className="btn btn-secondary" onClick={() => setShowHistoryModal(false)}>
+                    Close
                   </button>
                 </div>
               </div>
