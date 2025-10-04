@@ -64,9 +64,9 @@ const roleMap: Record<string, number> = {
 }
 
 const branchMap: Record<string, number> = {
-  makati: 1,
-  qc: 2,
-  cebu: 3,
+  exxa: 1,
+  tera: 2,
+  cnx: 3,
   all: 99, // optional for admin all-branches
 }
 
@@ -83,7 +83,7 @@ export async function POST(req: Request) {
     const hashedPassword = await bcrypt.hash(password, 10)
 
     const roleId = roleMap[role] ?? 3 // default cashier
-    const branchId = branchMap[branch] ?? 1 // default makati
+    const branchId = branchMap[branch] ?? 1 // default exxa
 
     const [result]: any = await pool.query(
       "INSERT INTO users (name, email, password, role_id, branch_id, status_id, last_login) VALUES (?, ?, ?, ?, ?, 1, NULL)",

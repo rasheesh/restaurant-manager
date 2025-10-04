@@ -13,42 +13,42 @@ export default function LoginPage() {
   const router = useRouter()
 
   const handleLogin = async (e: React.FormEvent) => {
-  e.preventDefault()
-  setLoading(true)
+    e.preventDefault()
+    setLoading(true)
 
-  try {
-    const res = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, branch })
-    })
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, branch })
+      })
 
-    const data = await res.json()
+      const data = await res.json()
 
-    if (!res.ok) {
-      alert(data.error || "Login failed")
+      if (!res.ok) {
+        alert(data.error || "Login failed")
+        setLoading(false)
+        return
+      }
+
+      // Save session (localStorage for now, but can use JWT/NextAuth later)
+      localStorage.setItem("user", JSON.stringify(data.user))
+
+      // Redirect
+      // Redirect
+      if (data.user.role === "cashier") {
+        router.push("/pos")
+      } else {
+        router.push("/dashboard")
+      }
+
+    } catch (error) {
+      console.error(error)
+      alert("Something went wrong")
+    } finally {
       setLoading(false)
-      return
     }
-
-    // Save session (localStorage for now, but can use JWT/NextAuth later)
-    localStorage.setItem("user", JSON.stringify(data.user))
-
-    // Redirect
-    // Redirect
-if (data.user.role === "cashier") {
-  router.push("/pos")
-} else {
-  router.push("/dashboard")
-}
-
-  } catch (error) {
-    console.error(error)
-    alert("Something went wrong")
-  } finally {
-    setLoading(false)
   }
-}
 
 
   return (
@@ -100,9 +100,9 @@ if (data.user.role === "cashier") {
               required
             >
               <option value="">Choose a branch...</option>
-              <option value="makati">Branch 1 (Makati)</option>
-              <option value="qc">Branch 2 (QC)</option>
-              <option value="cebu">Branch 3 (Cebu)</option>
+              <option value="exxa">Branch 1 (EXXA)</option>
+              <option value="tera">Branch 2 (TERA)</option>
+              <option value="cnx">Branch 3 (CNX)</option>
             </select>
           </div>
 

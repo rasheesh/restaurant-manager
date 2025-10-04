@@ -12,7 +12,7 @@ const pool = mysql.createPool({
 
 // maps (IDs -> strings)
 const roleMap: Record<number, string> = { 1: "admin", 2: "manager", 3: "cashier" }
-const branchMap: Record<number, string> = { 1: "makati", 2: "qc", 3: "cebu", 99: "all" }
+const branchMap: Record<number, string> = { 1: "exxa", 2: "tera", 3: "cnx", 99: "all" }
 
 export async function POST(req: Request) {
   const { email, password } = await req.json()
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
       id: updatedUser.id,
       email: updatedUser.email,
       role: roleMap[updatedUser.role_id] ?? "cashier",
-      branch: branchMap[updatedUser.branch_id] ?? "makati",
+      branch: branchMap[updatedUser.branch_id] ?? "exxa",
       status: updatedUser.status_id === 1 ? "active" : "inactive",
       lastLogin: lastLoginIso, // proper ISO string in UTC
     }

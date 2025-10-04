@@ -14,7 +14,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ user, currentPage }: SidebarProps) {
-  const branchName = user.branch === "makati" ? "Makati" : user.branch === "qc" ? "QC" : "Cebu"
+  const branchName = user.branch === "exxa" ? "EXXA" : user.branch === "tera" ? "TERA" : user.branch === "cnx" ? "CNX" : "All Branches"
 
   const menuItems = [
     { href: "/dashboard", label: "📊 Dashboard", roles: ["admin", "manager"] },

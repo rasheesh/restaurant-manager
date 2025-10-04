@@ -26,7 +26,7 @@ interface InventoryItem {
 
 // Sample inventory data for different branches
 const inventoryData: Record<string, InventoryItem[]> = {
-  makati: [
+  exxa: [
     {
       id: 1,
       ingredient: "Chicken",
@@ -108,7 +108,7 @@ const inventoryData: Record<string, InventoryItem[]> = {
       supplier: "Knorr",
     },
   ],
-  qc: [
+  tera: [
     {
       id: 1,
       ingredient: "Chicken",
@@ -117,7 +117,7 @@ const inventoryData: Record<string, InventoryItem[]> = {
       unitCost: 195,
       reorderLevel: 5,
       lastUpdated: "2024-01-15",
-      supplier: "QC Poultry",
+      supplier: "TERA Poultry",
     },
     {
       id: 2,
@@ -150,7 +150,7 @@ const inventoryData: Record<string, InventoryItem[]> = {
       supplier: "Local Market",
     },
   ],
-  cebu: [
+  cnx: [
     {
       id: 1,
       ingredient: "Chicken",
@@ -159,7 +159,7 @@ const inventoryData: Record<string, InventoryItem[]> = {
       unitCost: 210,
       reorderLevel: 5,
       lastUpdated: "2024-01-15",
-      supplier: "Cebu Fresh",
+      supplier: "CNX Fresh",
     },
     {
       id: 2,
@@ -247,10 +247,10 @@ export default function InventoryPage() {
     const updatedInventory = inventory.map((item) =>
       item.id === selectedItem.id
         ? {
-            ...item,
-            qtyInStock: newQty,
-            lastUpdated: new Date().toISOString().split("T")[0],
-          }
+          ...item,
+          qtyInStock: newQty,
+          lastUpdated: new Date().toISOString().split("T")[0],
+        }
         : item,
     )
 
@@ -323,7 +323,7 @@ export default function InventoryPage() {
     return <div>Loading...</div>
   }
 
-  const branchName = user.branch === "makati" ? "Makati" : user.branch === "qc" ? "QC" : "Cebu"
+  const branchName = user.branch === "exxa" ? "EXXA" : user.branch === "tera" ? "TERA" : user.branch === "cnx" ? "CNX" : "All Branches"
   const lowStockItems = getLowStockItems()
 
   return (

@@ -24,62 +24,62 @@ export default function UserManagement() {
     name: "",
     email: "",
     role: "cashier",
-    branch: "makati",
+    branch: "exxa",
     password: "",
   })
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
 
   const roleMap: any = {
-  1: "admin",
-  2: "manager",
-  3: "cashier",
-}
-
-const branchMap: any = {
-  1: "makati",
-  2: "qc",
-  3: "cebu",
-  99: "all",
-}
-
-// 🔹 Load current user + fetch users from backend
-useEffect(() => {
-  setMounted(true)
-  const userData = localStorage.getItem("user")
-  if (userData) setUser(JSON.parse(userData))
-
-  fetchUsers()
-}, [])
-
-const fetchUsers = async () => {
-  try {
-    const res = await fetch("/api/users")
-    const data = await res.json()
-
-    setUsers(
-      data.map((u: any) => {
-        let lastLoginFormatted = "Never"
-        if (u.last_login) {
-          const date = new Date(u.last_login)
-          lastLoginFormatted = isNaN(date.getTime())
-            ? "Never"
-            : date.toLocaleString("en-US", { timeZone: "Asia/Manila" })
-        }
-        return {
-          id: u.id.toString(),
-          name: u.name || "N/A",
-          email: u.email,
-          role: roleMap[u.role_id] || "cashier",
-          branch: branchMap[u.branch_id] || "makati",
-          status: u.status_id === 1 ? "active" : "inactive",
-          lastLogin: lastLoginFormatted,
-        }
-      })
-    )
-  } catch (err) {
-    console.error(err)
+    1: "admin",
+    2: "manager",
+    3: "cashier",
   }
-}
+
+  const branchMap: any = {
+    1: "exxa",
+    2: "tera",
+    3: "cnx",
+    99: "all",
+  }
+
+  // 🔹 Load current user + fetch users from backend
+  useEffect(() => {
+    setMounted(true)
+    const userData = localStorage.getItem("user")
+    if (userData) setUser(JSON.parse(userData))
+
+    fetchUsers()
+  }, [])
+
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch("/api/users")
+      const data = await res.json()
+
+      setUsers(
+        data.map((u: any) => {
+          let lastLoginFormatted = "Never"
+          if (u.last_login) {
+            const date = new Date(u.last_login)
+            lastLoginFormatted = isNaN(date.getTime())
+              ? "Never"
+              : date.toLocaleString("en-US", { timeZone: "Asia/Manila" })
+          }
+          return {
+            id: u.id.toString(),
+            name: u.name || "N/A",
+            email: u.email,
+            role: roleMap[u.role_id] || "cashier",
+            branch: branchMap[u.branch_id] || "exxa",
+            status: u.status_id === 1 ? "active" : "inactive",
+            lastLogin: lastLoginFormatted,
+          }
+        })
+      )
+    } catch (err) {
+      console.error(err)
+    }
+  }
 
   // 🔹 Form validation
   const validateForm = () => {
@@ -123,7 +123,7 @@ const fetchUsers = async () => {
         { id: data.id.toString(), ...newUser, status: "active", lastLogin: "Never" },
       ])
 
-      setNewUser({ name: "", email: "", role: "cashier", branch: "makati", password: "" })
+      setNewUser({ name: "", email: "", role: "cashier", branch: "exxa", password: "" })
       setShowAddModal(false)
     } catch (err) {
       console.error(err)
@@ -168,7 +168,7 @@ const fetchUsers = async () => {
   const handleCloseModal = () => {
     setShowAddModal(false)
     setEditingUser(null)
-    setNewUser({ name: "", email: "", role: "cashier", branch: "makati", password: "" })
+    setNewUser({ name: "", email: "", role: "cashier", branch: "exxa", password: "" })
     setErrors({})
   }
 
@@ -180,10 +180,10 @@ const fetchUsers = async () => {
 
     try {
       const res = await fetch("/api/users", {
-  method: "PATCH",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ id: userId, status: newStatus }),
-})
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: userId, status: newStatus }),
+      })
       const data = await res.json()
       if (!res.ok) return alert(data.error)
 
@@ -353,9 +353,9 @@ const fetchUsers = async () => {
                   <div className="form-group">
                     <label>Branch</label>
                     <select value={newUser.branch} onChange={(e) => setNewUser({ ...newUser, branch: e.target.value })}>
-                      <option value="makati">Makati</option>
-                      <option value="qc">QC</option>
-                      <option value="cebu">Cebu</option>
+                      <option value="exxa">EXXA</option>
+                      <option value="tera">TERA</option>
+                      <option value="cnx">CNX</option>
                       {newUser.role === "admin" && <option value="all">All Branches</option>}
                     </select>
                   </div>

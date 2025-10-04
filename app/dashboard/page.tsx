@@ -90,7 +90,7 @@ export default function Dashboard() {
     return <div>Loading...</div>
   }
 
-  const branchName = user.branch === "makati" ? "Makati" : user.branch === "qc" ? "QC" : "Cebu"
+  const branchName = user.branch === "exxa" ? "EXXA" : user.branch === "tera" ? "TERA" : user.branch === "cnx" ? "CNX" : "All Branches"
   const totalCreditBalance = getTotalCreditBalance()
   const outstandingCredits = creditTransactions.filter((t) => t.status !== "paid").length
 

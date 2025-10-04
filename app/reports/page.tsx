@@ -85,9 +85,9 @@ interface Activity {
 }
 
 const sampleBranchSales: BranchSales[] = [
-  { branch: "Makati", sales: 12500, orders: 85, avgOrderValue: 147 },
-  { branch: "QC", sales: 9200, orders: 62, avgOrderValue: 148 },
-  { branch: "Cebu", sales: 11800, orders: 78, avgOrderValue: 151 },
+  { branch: "EXXA", sales: 12500, orders: 85, avgOrderValue: 147 },
+  { branch: "TERA", sales: 9200, orders: 62, avgOrderValue: 148 },
+  { branch: "CNX", sales: 11800, orders: 78, avgOrderValue: 151 },
 ]
 
 const sampleDishSales: DishSales[] = [
@@ -1179,8 +1179,8 @@ export default function ReportsPage() {
                               <td>
                                 {transaction.payments.length > 0
                                   ? new Date(
-                                      Math.max(...transaction.payments.map((p) => new Date(p.timestamp).getTime())),
-                                    ).toLocaleDateString("en-PH")
+                                    Math.max(...transaction.payments.map((p) => new Date(p.timestamp).getTime())),
+                                  ).toLocaleDateString("en-PH")
                                   : "No payments"}
                               </td>
                             </tr>
