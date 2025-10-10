@@ -6,7 +6,7 @@ function mapRole(roleId: number) {
   switch (roleId) {
     case 1: return "Admin"
     case 2: return "Manager"
-    case 3: return "Staff"
+    case 3: return "Cashier"
     default: return "Unknown"
   }
 }
@@ -76,10 +76,6 @@ export async function POST(req: Request) {
     const roleId = roleMap[role] ?? 3 // default cashier
     const branchId = branchMap[branch] ?? 1 // default exxa
 
-    const [result]: any = await pool.query(
-      "INSERT INTO users (name, email, password, role_id, branch_id, status_id, last_login) VALUES (?, ?, ?, ?, ?, 1, NULL)",
-      [name, email, hashedPassword, roleId, branchId]
-    )
 
     const result: any = await query(
       "INSERT INTO users (name, email, password, role_id, branch_id, status_id, last_login) VALUES (?, ?, ?, ?, ?, 1, NULL)",
