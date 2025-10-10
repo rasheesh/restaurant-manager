@@ -67,7 +67,7 @@ export default function Dashboard() {
         if (data?.summary) setSummary(data.summary)
         if (Array.isArray(data?.topItems)) setTopItems(data.topItems)
       })
-      .catch(() => {})
+      .catch(() => { })
     const invUrl = branchId == null ? `/api/inventory` : `/api/inventory?branch_id=${branchId}`
     fetch(invUrl)
       .then(r => r.json())
@@ -77,7 +77,7 @@ export default function Dashboard() {
           setLowStock(lows.slice(0, 10))
         }
       })
-      .catch(() => {})
+      .catch(() => { })
   }, [router])
 
   const loadCreditTransactions = () => {
@@ -101,22 +101,22 @@ export default function Dashboard() {
   }
 
   const loadRecentActivities = () => {
-    const today = new Date().toISOString().slice(0,10)
+    const today = new Date().toISOString().slice(0, 10)
     const branchNameToId: any = { exxa: 1, tera: 2, cnx: 3, all: null }
     const branchId = user ? branchNameToId[(user as any).branch] : null
     const url = branchId == null ? `/api/orders?from=${today}&to=${today}` : `/api/orders?from=${today}&to=${today}&branch_id=${branchId}`
     fetch(url)
-      .then(r=>r.json())
-      .then((rows)=>{
+      .then(r => r.json())
+      .then((rows) => {
         if (!Array.isArray(rows)) { setRecentActivities([]); return }
-        const activities = rows.slice(0,10).map((o:any)=>({
+        const activities = rows.slice(0, 10).map((o: any) => ({
           id: `ORD-${o.id}`,
           timestamp: o.created_at || new Date().toISOString(),
-          description: `Order #${String(o.order_number||'').padStart(4,'0')} - ₱${Number(o.total||0).toFixed(2)}`,
+          description: `Order #${String(o.order_number || '').padStart(4, '0')} - ₱${Number(o.total || 0).toFixed(2)}`,
         }))
         setRecentActivities(activities)
       })
-      .catch(()=>setRecentActivities([]))
+      .catch(() => setRecentActivities([]))
   }
 
   const getTotalCreditBalance = () => {
@@ -134,7 +134,7 @@ export default function Dashboard() {
   const outstandingCredits = creditTransactions.filter((t) => t.status !== "paid").length
 
   return (
-    <AuthGuard allowedRoles={["admin", "supervisor"]}>
+    <AuthGuard allowedRoles={["admin"]}>
       <div className="main-layout">
         {/* Sidebar Navigation */}
         <Sidebar user={user} currentPage="/dashboard" />
@@ -246,7 +246,7 @@ export default function Dashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {topItems.slice(0,5).map((ti: any, idx: number) => (
+                    {topItems.slice(0, 5).map((ti: any, idx: number) => (
                       <tr key={idx}>
                         <td>{ti.name}</td>
                         <td>{Number(ti.qty || 0)}</td>
@@ -265,7 +265,7 @@ export default function Dashboard() {
                 {/* Simple Bar Chart Visualization */}
                 <div style={{ padding: "20px" }}>
                   <h4 style={{ marginBottom: "20px", color: "#2d5a27" }}>Orders Distribution</h4>
-                  {topItems.slice(0,5).map((dish: any, index: number) => (
+                  {topItems.slice(0, 5).map((dish: any, index: number) => (
                     <div key={index} style={{ marginBottom: "15px" }}>
                       <div
                         style={{

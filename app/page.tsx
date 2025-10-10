@@ -32,6 +32,8 @@ export default function LoginPage() {
       localStorage.setItem("user", JSON.stringify(data.user))
       if (data.user.role === "cashier") {
         router.push("/pos")
+      } else if (data.user.role === "supervisor") {
+        router.push("/dishes")
       } else {
         router.push("/dashboard")
       }
@@ -74,7 +76,7 @@ export default function LoginPage() {
         <h1 className="login-title">Food Business POS</h1>
         <p style={{ textAlign: "center", marginBottom: "30px", color: "#6c757d" }}>Filipino Food Business Management</p>
 
-  <form onSubmit={handleLogin}>
+        <form onSubmit={handleLogin}>
           <div className="form-group">
             <label className="form-label" htmlFor="email">
               Email Address
