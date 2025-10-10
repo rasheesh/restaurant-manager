@@ -17,12 +17,12 @@ export default function Sidebar({ user, currentPage }: SidebarProps) {
   const branchName = user.branch === "exxa" ? "EXXA" : user.branch === "tera" ? "TERA" : user.branch === "cnx" ? "CNX" : "All Branches"
 
   const menuItems = [
-    { href: "/dashboard", label: "📊 Dashboard", roles: ["admin", "manager"] },
+    { href: "/dashboard", label: "📊 Dashboard", roles: ["admin"] },
     { href: "/dishes", label: "🍽️ Dish & Item Management", roles: ["admin", "manager"] },
     { href: "/inventory", label: "📦 Inventory", roles: ["admin", "manager"] },
     { href: "/pos", label: "🛒 Point of Sale", roles: ["admin", "manager", "cashier"] },
     { href: "/credit", label: "💳 Credit Management", roles: ["admin", "manager"] },
-    { href: "/reports", label: "📈 Reports", roles: ["admin", "manager"] },
+    { href: "/reports", label: "📈 Reports", roles: ["admin"] },
   ]
 
   return (

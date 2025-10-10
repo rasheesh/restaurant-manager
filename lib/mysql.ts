@@ -5,7 +5,6 @@ let pool: mysql.Pool | null = null;
 function getSslConfig(): mysql.SslOptions | undefined {
   // Read environment variables directly
   const host = process.env.DB_HOST;
-  const port = process.env.DB_PORT;
 
   // Allow disabling SSL for local development
   const wantSsl =
@@ -24,16 +23,6 @@ function getSslConfig(): mysql.SslOptions | undefined {
 }
 
 export function getPool(): mysql.Pool {
-<<<<<<< HEAD
-    if (pool) return pool
-    const databaseUrl = getDatabaseUrl()
-    if (!databaseUrl) {
-        throw new Error('MYSQL_URL or DATABASE_URL must be set in environment variables')
-    }
-    // mysql2 supports DSN string directly
-    pool = mysql.createPool(databaseUrl)
-    return pool
-=======
   if (pool) return pool;
 
   const databaseUrl = process.env.DATABASE_URL || process.env.MYSQL_URL;
@@ -65,7 +54,6 @@ export function getPool(): mysql.Pool {
   }
 
   return pool;
->>>>>>> da42b205303ca7bc05cffb3957e97348fbc5e76c
 }
 
 export async function query<T = any>(sql: string, params?: any[]): Promise<T[]> {
