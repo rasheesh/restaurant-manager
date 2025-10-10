@@ -1,14 +1,6 @@
 import { NextResponse } from "next/server"
-import mysql from "mysql2/promise"
 import bcrypt from "bcryptjs"
-
-const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  port: Number(process.env.DB_PORT),
-})
+import { query } from "@/lib/mysql"
 
 // maps (IDs -> strings)
 const roleMap: Record<number, string> = { 1: "admin", 2: "manager", 3: "cashier" }
@@ -18,7 +10,7 @@ export async function POST(req: Request) {
   const { email, password } = await req.json()
 
   try {
-    const [rows]: any = await pool.query("SELECT * FROM users WHERE email = ?", [email])
+    const rows: any[] = await query("SELECT * FROM users WHERE email = ?", [email])
 
     if (rows.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
@@ -32,10 +24,10 @@ export async function POST(req: Request) {
     }
 
     // ✅ store UTC time as last_login
-    await pool.query("UPDATE users SET last_login = UTC_TIMESTAMP() WHERE id = ?", [user.id])
+    await query("UPDATE users SET last_login = UTC_TIMESTAMP() WHERE id = ?", [user.id])
 
     // fetch updated row
-    const [updatedRows]: any = await pool.query("SELECT * FROM users WHERE id = ?", [user.id])
+    const updatedRows: any[] = await query("SELECT * FROM users WHERE id = ?", [user.id])
     const updatedUser = updatedRows[0]
 
     // ✅ keep UTC datetime but don’t force Z manually

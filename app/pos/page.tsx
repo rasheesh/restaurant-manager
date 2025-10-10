@@ -194,7 +194,7 @@ const defaultCombo = {
 
 export default function POSPage() {
   const [user, setUser] = useState<User | null>(null)
-  const [dishes, setDishes] = useState<Dish[]>(sampleDishes)
+  const [dishes, setDishes] = useState<Dish[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>("All")
   const [searchQuery, setSearchQuery] = useState<string>("")
@@ -214,6 +214,7 @@ export default function POSPage() {
   })
   const [referenceNumber, setReferenceNumber] = useState<string>("")
   const router = useRouter()
+  const [processingCheckout, setProcessingCheckout] = useState(false)
 
   useEffect(() => {
     const userData = localStorage.getItem("user")
@@ -230,6 +231,25 @@ export default function POSPage() {
         setComboMealPrice(Number.parseFloat(settings.comboMealPrice))
       }
     }
+    // Load items from backend
+    fetch("/api/items")
+      .then((r) => r.json())
+      .then((rows) => {
+        if (Array.isArray(rows)) {
+          const mapped: Dish[] = rows.map((r: any) => ({
+            id: r.id,
+            name: r.name,
+            price: Number(r.price ?? 0),
+            category: r.category || "Uncategorized",
+            available: !!r.available,
+            servingsAvailable: Number(r.servings_available ?? 0),
+            totalServings: Number(r.total_servings ?? 0),
+            imageUrl: r.image_url || undefined,
+          }))
+          setDishes(mapped)
+        }
+      })
+      .catch(() => {})
   }, [router])
 
   const categories = ["All", ...Array.from(new Set(dishes.map((dish) => dish.category)))]
@@ -397,7 +417,9 @@ export default function POSPage() {
     localStorage.setItem("activityLog", JSON.stringify(existingActivities))
   }
 
-  const handlePayment = () => {
+  const handlePayment = async () => {
+    if (processingCheckout) return
+    setProcessingCheckout(true)
     const total = getCartTotal()
     const change = paymentMethod === "cash" ? amountReceived - total : 0
     const transactionTime = new Date()
@@ -441,10 +463,94 @@ export default function POSPage() {
       })),
     }
 
-    // Save to localStorage for Sales History
-    const existingSalesTransactions = JSON.parse(localStorage.getItem("salesTransactions") || "[]")
-    existingSalesTransactions.push(salesTransaction)
-    localStorage.setItem("salesTransactions", JSON.stringify(existingSalesTransactions))
+    // Persist order to backend
+    try {
+      const branchNameToId: any = { exxa: 1, tera: 2, cnx: 3, all: 99 }
+      const branchId = branchNameToId[(user as any)?.branch] ?? 1
+      const normalizedMethod = paymentMethod === 'paymaya' ? 'paymaya' : paymentMethod
+      // Expand cart into order items for backend
+      const expandedItems: any[] = []
+      for (const ci of cart) {
+        if (!ci.isCombo) {
+          expandedItems.push({
+            item_id: ci.dish.id,
+            name_snapshot: ci.dish.name,
+            unit_price: ci.price,
+            quantity: ci.quantity,
+          })
+        } else {
+          // Combo: push each component as quantity aggregated
+          const qty = ci.quantity
+          for (const sub of (ci.comboItems || [])) {
+            expandedItems.push({
+              item_id: sub.dish.id,
+              name_snapshot: sub.dish.name,
+              unit_price: sub.price,
+              quantity: qty,
+            })
+          }
+          // Also add one rice if available in dishes list
+          const rice = dishes.find((d) => d.category === 'Rice')
+          if (rice) {
+            expandedItems.push({
+              item_id: rice.id,
+              name_snapshot: rice.name,
+              unit_price: rice.price,
+              quantity: qty,
+            })
+          }
+        }
+      }
+      const payload = {
+        user_id: (user as any)?.id,
+        branch_id: branchId,
+        items: expandedItems,
+        discount: 0,
+        tax: 0,
+        payment_method: normalizedMethod,
+        reference_number: referenceNumber || null,
+        notes: null,
+      }
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json()
+      if (res.ok && data?.order_number) {
+        // Build receipt from server order_number/id to avoid duplicates
+        const serverOrderNumber = data.order_number
+        const salesTransaction = {
+          id: `TXN-${data.id}`,
+          receiptNo: `RCP-${new Date().getFullYear()}-${String(serverOrderNumber).padStart(4, '0')}`,
+          dateTime: transactionTime,
+          cashier: user?.email || 'Unknown',
+          customer: paymentMethod === 'credit' ? creditCustomer.name : undefined,
+          paymentMethod: paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1),
+          totalAmount: total,
+          referenceNumber: (paymentMethod === 'gcash' || paymentMethod === 'paymaya' || paymentMethod === 'card') ? referenceNumber : undefined,
+          items: cart.map((item) => ({
+            name: item.isCombo
+              ? `${item.dish.name} (${item.comboItems?.map((ci) => ci.dish.name).join(', ')})`
+              : item.dish.name,
+            quantity: item.quantity,
+            price: item.price,
+          })),
+        }
+        const existingSalesTransactions = JSON.parse(localStorage.getItem('salesTransactions') || '[]')
+        existingSalesTransactions.push(salesTransaction)
+        localStorage.setItem('salesTransactions', JSON.stringify(existingSalesTransactions))
+        setOrderNumber(serverOrderNumber + 1)
+      } else {
+        throw new Error(data?.error || 'Order failed')
+      }
+    } catch (e) {
+      console.error(e)
+      alert('Failed to process order. Please try again.')
+      setProcessingCheckout(false)
+      return
+    }
+    // Save to localStorage for Sales History handled above after server response
 
     const paymentDetails =
       paymentMethod === "cash"
@@ -488,6 +594,7 @@ export default function POSPage() {
     setReferenceNumber("")
 
     setShowReceiptModal(true)
+    setProcessingCheckout(false)
   }
 
   const printReceipt = () => {

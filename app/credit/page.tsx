@@ -60,27 +60,24 @@ export default function CreditPage() {
     loadCreditTransactions()
   }, [router])
 
-  const loadCreditTransactions = () => {
-    const storedTransactions = JSON.parse(localStorage.getItem("creditTransactions") || "[]")
-    const processedTransactions = storedTransactions.map((transaction: any) => ({
-      ...transaction,
-      timestamp: new Date(transaction.timestamp),
-      amountPaid: transaction.payments?.reduce((sum: number, payment: Payment) => sum + payment.amount, 0) || 0,
-      remainingBalance:
-        transaction.amount -
-        (transaction.payments?.reduce((sum: number, payment: Payment) => sum + payment.amount, 0) || 0),
-      status: (() => {
-        const paid = transaction.payments?.reduce((sum: number, payment: Payment) => sum + payment.amount, 0) || 0
-        if (paid === 0) return "unpaid"
-        if (paid >= transaction.amount) return "paid"
-        return "partial"
-      })(),
-      payments: (transaction.payments || []).map((payment: any) => ({
-        ...payment,
-        timestamp: new Date(payment.timestamp),
-      })),
-    }))
-    setCreditTransactions(processedTransactions)
+  const loadCreditTransactions = async () => {
+    try {
+      const rows = await fetch('/api/credit_transactions').then(r=>r.json())
+      const processedTransactions = rows.map((transaction: any) => ({
+        id: transaction.id,
+        orderNumber: transaction.order_id || 0,
+        customerName: transaction.customer_name,
+        customerContact: transaction.contact || '',
+        amount: Number(transaction.amount || 0),
+        amountPaid: 0, // extend later if you add payment linking
+        remainingBalance: Number(transaction.amount || 0),
+        timestamp: new Date(transaction.created_at || Date.now()),
+        status: 'unpaid',
+        cashier: '',
+        payments: [],
+      }))
+      setCreditTransactions(processedTransactions)
+    } catch {}
   }
 
   const openPaymentModal = (transaction: CreditTransaction) => {
@@ -95,7 +92,7 @@ export default function CreditPage() {
     setShowHistoryModal(true)
   }
 
-  const processPayment = () => {
+  const processPayment = async () => {
     if (!selectedTransaction || paymentAmount <= 0) return
 
     const payment: Payment = {
@@ -115,20 +112,25 @@ export default function CreditPage() {
       transaction.id === selectedTransaction.id ? updatedTransaction : transaction,
     )
 
-    // Update localStorage
-    const storedTransactions = JSON.parse(localStorage.getItem("creditTransactions") || "[]")
-    const updatedStoredTransactions = storedTransactions.map((transaction: any) =>
-      transaction.id === selectedTransaction.id
-        ? { ...transaction, payments: updatedTransaction.payments }
-        : transaction,
-    )
-    localStorage.setItem("creditTransactions", JSON.stringify(updatedStoredTransactions))
+    // Persist as a credit payment (negative transaction) or separate payments table in future
+    try {
+      await fetch('/api/credit_transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          credit_customer_id: 0, // optional: link to a real customer id if captured
+          order_id: selectedTransaction.orderNumber || null,
+          amount: -Math.abs(paymentAmount),
+          description: `Payment via ${paymentMethod}`,
+        }),
+      })
+    } catch {}
 
     setCreditTransactions(updatedTransactions)
     setShowPaymentModal(false)
     setSelectedTransaction(null)
     setPaymentAmount(0)
-    loadCreditTransactions() // Reload to recalculate status
+    loadCreditTransactions()
   }
 
   const getTotalCreditBalance = () => {

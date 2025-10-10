@@ -1,15 +1,6 @@
 import { NextResponse } from "next/server"
-import mysql from "mysql2/promise"
 import bcrypt from "bcryptjs"
-
-
-const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  port: Number(process.env.DB_PORT),
-})
+import { query } from "@/lib/mysql"
 
 function mapRole(roleId: number) {
   switch (roleId) {
@@ -22,7 +13,7 @@ function mapRole(roleId: number) {
 
 // ✅ GET all users
 export async function GET() {
-  const [rows]: any = await pool.query("SELECT * FROM users")
+  const rows: any[] = await query("SELECT * FROM users")
 
   const rowsMapped = rows.map((u: any) => {
     let lastLoginIso = null
@@ -90,7 +81,11 @@ export async function POST(req: Request) {
       [name, email, hashedPassword, roleId, branchId]
     )
 
-    return NextResponse.json({ success: true, id: result.insertId })
+    const result: any = await query(
+      "INSERT INTO users (name, email, password, role_id, branch_id, status_id, last_login) VALUES (?, ?, ?, ?, ?, 1, NULL)",
+      [name, email, hashedPassword, roleId, branchId]
+    )
+    return NextResponse.json({ success: true, id: result?.insertId })
   } catch (err) {
     console.error("POST /api/users error:", err)
     return NextResponse.json({ error: "Failed to add user" }, { status: 500 })
@@ -111,12 +106,12 @@ export async function PUT(req: Request) {
 
     if (password && password.trim() !== "") {
       const hashedPassword = await bcrypt.hash(password, 10)
-      await pool.query(
+      await query(
         "UPDATE users SET name=?, email=?, role_id=?, branch_id=?, password=? WHERE id=?",
         [name, email, roleId, branchId, hashedPassword, id]
       )
     } else {
-      await pool.query(
+      await query(
         "UPDATE users SET name=?, email=?, role_id=?, branch_id=? WHERE id=?",
         [name, email, roleId, branchId, id]
       )
@@ -142,7 +137,7 @@ export async function PATCH(req: Request) {
 
     const statusId = statusMap[status] ?? 1
 
-    await pool.query("UPDATE users SET status_id=? WHERE id=?", [statusId, id])
+    await query("UPDATE users SET status_id=? WHERE id=?", [statusId, id])
     return NextResponse.json({ success: true })
   } catch (err) {
     console.error(err)

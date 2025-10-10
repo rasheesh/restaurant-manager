@@ -244,7 +244,7 @@ const sampleDishes: Dish[] = [
 
 export default function DishesPage() {
   const [user, setUser] = useState<User | null>(null)
-  const [dishes, setDishes] = useState<Dish[]>(sampleDishes)
+  const [dishes, setDishes] = useState<Dish[]>([])
   const [selectedDish, setSelectedDish] = useState<Dish | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [editMode, setEditMode] = useState(false)
@@ -278,6 +278,30 @@ export default function DishesPage() {
       return
     }
     setUser(parsedUser)
+    // Load categories and items
+    Promise.all([
+      fetch('/api/categories').then(r=>r.json()).catch(()=>[]),
+      fetch('/api/items').then(r=>r.json()).catch(()=>[]),
+    ]).then(([cats, items]) => {
+      if (Array.isArray(items)) {
+        setDishes(items.map((r:any)=>({
+          id: r.id,
+          name: r.name,
+          servings: r.total_servings ?? 0,
+          pricePerServing: Number(r.price??0),
+          cost: 0,
+          totalSellingPrice: Number(r.price??0),
+          profit: 0,
+          profitPerServing: 0,
+          category: r.category || 'Uncategorized',
+          status: r.available ? 'available' : 'hidden',
+          ingredients: [],
+        })))
+      }
+      if (Array.isArray(cats)) {
+        // could store categories in state if needed later
+      }
+    })
   }, [router])
 
   const calculateIngredientCost = (ingredientName: string, quantity: number, recipeUnit: string) => {
@@ -395,19 +419,62 @@ export default function DishesPage() {
     })
   }
 
-  const handleSaveNewDish = () => {
+  const handleSaveNewDish = async () => {
     if (!newDish.name || newDish.ingredients.length === 0) {
       alert("Please fill in dish name and add at least one ingredient")
       return
     }
 
-    const dishToAdd = {
-      ...newDish,
-      id: Math.max(...dishes.map((d) => d.id)) + 1,
-    }
+    try {
+      const cat = newDish.category || 'Uncategorized'
+      // optional: ensure category exists (omitted for brevity)
+      const res = await fetch('/api/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newDish.name,
+          price: newDish.pricePerServing,
+          category_id: undefined,
+          available: newDish.status !== 'hidden',
+          servings_available: newDish.servings,
+          total_servings: newDish.servings,
+        })
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        alert(data.error || 'Failed to create item')
+        return
+      }
+      const itemId = data.id
 
-    setDishes([...dishes, dishToAdd])
-    setShowAddModal(false)
+      // Ensure ingredients exist and upsert recipe
+      const ingRes = await fetch('/api/ingredients')
+      const ingList = await ingRes.json()
+      for (const ing of newDish.ingredients) {
+        let found = Array.isArray(ingList) ? ingList.find((x: any) => (x.name || '').toLowerCase() === ing.name.toLowerCase()) : null
+        if (!found) {
+          const created = await fetch('/api/ingredients', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: ing.name, default_unit: ing.unit, cost_per_unit: ing.cost || 0 })
+          })
+          const cData = await created.json()
+          found = { id: cData.id, name: ing.name }
+        }
+        await fetch('/api/recipes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ item_id: itemId, ingredient_id: found.id, quantity: ing.quantity || 0, recipe_unit: ing.unit || 'unit' })
+        })
+      }
+
+      const added: Dish = { ...newDish, id: itemId }
+      setDishes([...dishes, added])
+      setShowAddModal(false)
+    } catch (e) {
+      console.error(e)
+      alert('Failed to create item')
+    }
     setNewDish({
       id: 0,
       name: "",
@@ -435,13 +502,64 @@ export default function DishesPage() {
     setShowModal(true)
   }
 
-  const handleSaveDish = () => {
+  const handleSaveDish = async () => {
     if (!selectedDish) return
-
-    const updatedDishes = dishes.map((dish) => (dish.id === selectedDish.id ? selectedDish : dish))
-    setDishes(updatedDishes)
-    setShowModal(false)
-    setSelectedDish(null)
+    try {
+      await fetch('/api/items', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedDish.id,
+          name: selectedDish.name,
+          price: selectedDish.pricePerServing,
+          category_id: undefined,
+          available: selectedDish.status !== 'hidden',
+          servings_available: selectedDish.servings,
+          total_servings: selectedDish.servings,
+        })
+      })
+      // Sync recipe: upsert desired, delete removed
+      const existingRows = await fetch(`/api/recipes?item_id=${selectedDish.id}`).then(r=>r.json()).catch(()=>[])
+      const ingAll = await fetch('/api/ingredients').then(r=>r.json()).catch(()=>[])
+      const desired = selectedDish.ingredients
+      const desiredIds: number[] = []
+      for (const ing of desired) {
+        let found = Array.isArray(ingAll) ? ingAll.find((x: any) => (x.name || '').toLowerCase() === ing.name.toLowerCase()) : null
+        if (!found) {
+          const created = await fetch('/api/ingredients', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: ing.name, default_unit: ing.unit, cost_per_unit: ing.cost || 0 })
+          })
+          const cData = await created.json()
+          found = { id: cData.id, name: ing.name }
+        }
+        desiredIds.push(found.id)
+        await fetch('/api/recipes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ item_id: selectedDish.id, ingredient_id: found.id, quantity: ing.quantity || 0, recipe_unit: ing.unit || 'unit' })
+        })
+      }
+      if (Array.isArray(existingRows)) {
+        for (const ex of existingRows) {
+          if (!desiredIds.includes(ex.ingredient_id)) {
+            await fetch('/api/recipes', {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ item_id: selectedDish.id, ingredient_id: ex.ingredient_id })
+            })
+          }
+        }
+      }
+      const updatedDishes = dishes.map((dish) => (dish.id === selectedDish.id ? selectedDish : dish))
+      setDishes(updatedDishes)
+      setShowModal(false)
+      setSelectedDish(null)
+    } catch (e) {
+      console.error(e)
+      alert('Failed to update item')
+    }
   }
 
   const handleIngredientChange = (index: number, field: string, value: string | number) => {

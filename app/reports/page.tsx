@@ -109,72 +109,7 @@ const monthlySalesData = [
   { month: "Jun", sales: 335000, profit: 167500 },
 ]
 
-const sampleSalesTransactions: SalesTransaction[] = [
-  {
-    id: "TXN-001",
-    receiptNo: "RCP-2024-001",
-    dateTime: new Date("2024-01-15T14:30:00"),
-    cashier: "Maria Santos",
-    customer: "Juan Dela Cruz",
-    paymentMethod: "Cash",
-    totalAmount: 285,
-    items: [
-      { name: "Chicken Adobo", quantity: 2, price: 120 },
-      { name: "Rice", quantity: 2, price: 25 },
-      { name: "Halo-Halo", quantity: 1, price: 95 },
-    ],
-    orderType: "dine-in",
-  },
-  {
-    id: "TXN-002",
-    receiptNo: "RCP-2024-002",
-    dateTime: new Date("2024-01-15T15:45:00"),
-    cashier: "Pedro Garcia",
-    paymentMethod: "GCash",
-    totalAmount: 150,
-    items: [{ name: "Combo Meal", quantity: 1, price: 150 }],
-    orderType: "combo",
-  },
-  {
-    id: "TXN-003",
-    receiptNo: "RCP-2024-003",
-    dateTime: new Date("2024-01-15T16:20:00"),
-    cashier: "Maria Santos",
-    customer: "Ana Reyes",
-    paymentMethod: "Card",
-    totalAmount: 340,
-    items: [
-      { name: "Pork Sinigang", quantity: 2, price: 130 },
-      { name: "Lumpiang Shanghai", quantity: 1, price: 50 },
-      { name: "Rice", quantity: 2, price: 25 },
-    ],
-    orderType: "takeout",
-  },
-  {
-    id: "TXN-004",
-    receiptNo: "RCP-2024-004",
-    dateTime: new Date("2024-01-15T17:10:00"),
-    cashier: "Pedro Garcia",
-    paymentMethod: "PayMaya",
-    totalAmount: 195,
-    items: [
-      { name: "Kare-Kare", quantity: 1, price: 180 },
-      { name: "Rice", quantity: 1, price: 25 },
-    ],
-    orderType: "dine-in",
-  },
-  {
-    id: "TXN-005",
-    receiptNo: "RCP-2024-005",
-    dateTime: new Date("2024-01-15T18:30:00"),
-    cashier: "Maria Santos",
-    customer: "Carlos Lopez",
-    paymentMethod: "Cash",
-    totalAmount: 300,
-    items: [{ name: "Combo Meal", quantity: 2, price: 150 }],
-    orderType: "combo",
-  },
-]
+const sampleSalesTransactions: SalesTransaction[] = []
 
 export default function ReportsPage() {
   const [user, setUser] = useState<User | null>(null)
@@ -186,7 +121,10 @@ export default function ReportsPage() {
   const [activeTab, setActiveTab] = useState<string>("overview")
   const [creditTransactions, setCreditTransactions] = useState<CreditTransaction[]>([])
   const [soldOutItems, setSoldOutItems] = useState<SoldOutItem[]>([])
-  const [salesTransactions, setSalesTransactions] = useState<SalesTransaction[]>(sampleSalesTransactions)
+  const [salesTransactions, setSalesTransactions] = useState<SalesTransaction[]>([])
+  const [reportsSummary, setReportsSummary] = useState<any>({ total: 0, orders: 0, tax: 0, discount: 0, subtotal: 0 })
+  const [reportsTopItems, setReportsTopItems] = useState<any[]>([])
+  const [reportsPayments, setReportsPayments] = useState<any[]>([])
   const [selectedTransaction, setSelectedTransaction] = useState<SalesTransaction | null>(null)
   const [showTransactionModal, setShowTransactionModal] = useState(false)
   const [activities, setActivities] = useState<Activity[]>([])
@@ -213,6 +151,19 @@ export default function ReportsPage() {
     loadSoldOutData()
     loadSalesTransactions()
     loadActivityLogs()
+    // Load sales summary from backend
+    const branchNameToId: any = { exxa: 1, tera: 2, cnx: 3, all: 99 }
+    const branchId = branchNameToId[parsedUser.branch] || 1
+    const from = new Date().toISOString().slice(0,10)
+    const to = from
+    fetch(`/api/reports?from=${from}&to=${to}&branch_id=${branchId}`)
+      .then(r=>r.json())
+      .then((data)=>{
+        if (data?.summary) setReportsSummary(data.summary)
+        if (Array.isArray(data?.topItems)) setReportsTopItems(data.topItems)
+        if (Array.isArray(data?.payments)) setReportsPayments(data.payments)
+      })
+      .catch(()=>{})
   }, [router])
 
   const loadCreditTransactions = () => {
@@ -236,25 +187,43 @@ export default function ReportsPage() {
   }
 
   const loadSoldOutData = () => {
-    const storedSoldOutData = JSON.parse(localStorage.getItem("soldOutTracking") || "[]")
-    const processedSoldOutData = storedSoldOutData.map((item: any) => ({
-      ...item,
-      lastMarkedSoldOut: new Date(item.lastMarkedSoldOut),
-    }))
-    setSoldOutItems(processedSoldOutData)
+    fetch('/api/items')
+      .then(r=>r.json())
+      .then((rows)=>{
+        if (!Array.isArray(rows)) { setSoldOutItems([]); return }
+        const sold = rows.filter((x:any)=>!x.available).map((x:any)=>({
+          id: x.id,
+          name: x.name,
+          lastMarkedSoldOut: new Date(x.updated_at || Date.now()),
+        }))
+        setSoldOutItems(sold)
+      })
+      .catch(()=>setSoldOutItems([]))
   }
 
   const loadSalesTransactions = () => {
-    const storedTransactions = JSON.parse(localStorage.getItem("salesTransactions") || "[]")
-    if (storedTransactions.length > 0) {
-      const processedTransactions = storedTransactions.map((transaction: any) => ({
-        ...transaction,
-        dateTime: new Date(transaction.dateTime),
-      }))
-      setSalesTransactions(processedTransactions)
-    } else {
-      setSalesTransactions(sampleSalesTransactions)
-    }
+    const branchNameToId: any = { exxa: 1, tera: 2, cnx: 3, all: 99 }
+    const branchId = user ? (branchNameToId[user.branch] || 1) : 1
+    const start = new Date().toISOString().slice(0,10)
+    const end = start
+    fetch(`/api/orders?from=${start}&to=${end}&branch_id=${branchId}`)
+      .then(r=>r.json())
+      .then((rows)=>{
+        if (!Array.isArray(rows)) { setSalesTransactions([]); return }
+        const mapped = rows.map((o:any)=>({
+          id: `TXN-${o.id}`,
+          receiptNo: `RCP-${new Date(o.created_at || Date.now()).getFullYear()}-${String(o.order_number||0).padStart(4,'0')}`,
+          dateTime: new Date(o.created_at || Date.now()),
+          cashier: '',
+          customer: undefined,
+          paymentMethod: '',
+          totalAmount: Number(o.total || 0),
+          referenceNumber: undefined,
+          items: [],
+        }))
+        setSalesTransactions(mapped)
+      })
+      .catch(()=>setSalesTransactions([]))
   }
 
   const loadActivityLogs = () => {

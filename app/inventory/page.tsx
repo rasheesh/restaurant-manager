@@ -12,7 +12,8 @@ interface User {
 }
 
 interface InventoryItem {
-  id: number
+  id: number            // inventory row id
+  ingredientId: number  // ingredient id
   ingredient: string
   unit: string
   qtyInStock: number
@@ -233,10 +234,29 @@ export default function InventoryPage() {
       return
     }
     setUser(parsedUser)
-    setInventory(inventoryData[parsedUser.branch] || [])
+    const branchNameToId: any = { exxa: 1, tera: 2, cnx: 3, all: 99 }
+    const branchId = branchNameToId[parsedUser.branch] || 1
+    fetch(`/api/inventory?branch_id=${branchId}`)
+      .then((r) => r.json())
+      .then((rows) => {
+        if (Array.isArray(rows)) {
+          const mapped: InventoryItem[] = rows.map((r: any) => ({
+            id: r.id,
+            ingredientId: r.ingredient_id,
+            ingredient: r.ingredient,
+            unit: r.unit || 'pcs',
+            qtyInStock: Number(r.quantity || 0),
+            unitCost: Number(r.unitCost || 0),
+            reorderLevel: Number(r.min_threshold || 0),
+            lastUpdated: r.updated_at || r.created_at || new Date().toISOString().split('T')[0],
+          }))
+          setInventory(mapped)
+        }
+      })
+      .catch(() => {})
   }, [router])
 
-  const handleStockAdjustment = () => {
+  const handleStockAdjustment = async () => {
     if (!selectedItem) return
 
     const newQty =
@@ -254,11 +274,31 @@ export default function InventoryPage() {
         : item,
     )
 
-    setInventory(updatedInventory)
-    setShowModal(false)
-    setSelectedItem(null)
-    setAdjustmentQty(0)
-    setAdjustmentReason("")
+    try {
+      const branchNameToId: any = { exxa: 1, tera: 2, cnx: 3, all: 99 }
+      const branchId = branchNameToId[user!.branch] || 1
+      const delta = adjustmentType === 'add' ? adjustmentQty : -adjustmentQty
+      await fetch('/api/inventory', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ingredient_id: selectedItem.ingredientId,
+          branch_id: branchId,
+          delta,
+          reason: adjustmentType === 'add' ? 'purchase' : 'adjustment',
+          notes: adjustmentReason,
+          user_id: (user as any)?.id || null,
+        }),
+      })
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setInventory(updatedInventory)
+      setShowModal(false)
+      setSelectedItem(null)
+      setAdjustmentQty(0)
+      setAdjustmentReason("")
+    }
   }
 
   const getLowStockItems = () => {
@@ -269,7 +309,7 @@ export default function InventoryPage() {
     return inventory.reduce((total, item) => total + item.qtyInStock * item.unitCost, 0)
   }
 
-  const handleAddNewItem = () => {
+  const handleAddNewItem = async () => {
     if (!newItem.ingredient.trim() || newItem.unitCost <= 0 || newItem.qtyInStock < 0) {
       alert("Please fill in all required fields with valid values")
       return
@@ -280,23 +320,53 @@ export default function InventoryPage() {
       return
     }
 
-    const itemToAdd: InventoryItem = {
-      id: Math.max(...inventory.map((item) => item.id), 0) + 1,
-      ingredient: newItem.ingredient.trim(),
-      unit: newItem.unit,
-      qtyInStock: newItem.qtyInStock,
-      unitCost: newItem.unitCost,
-      reorderLevel: newItem.reorderLevel,
-      lastUpdated: new Date().toISOString().split("T")[0],
-      supplier: newItem.supplier.trim() || undefined,
-      ...(newItem.unit === "pcs" && {
-        contentPerPiece: newItem.contentPerPiece,
-        contentUnit: newItem.contentUnit,
-      }),
-    }
+    try {
+      // Ensure ingredient exists (create if needed)
+      const ingRes = await fetch('/api/ingredients')
+      const ingList = await ingRes.json()
+      let ingredient = ingList.find((x: any) => (x.name || '').toLowerCase() === newItem.ingredient.trim().toLowerCase())
+      if (!ingredient) {
+        const createIng = await fetch('/api/ingredients', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newItem.ingredient.trim(), default_unit: newItem.unit, cost_per_unit: newItem.unitCost })
+        })
+        const data = await createIng.json()
+        ingredient = { id: data.id, name: newItem.ingredient.trim(), default_unit: newItem.unit, cost_per_unit: newItem.unitCost }
+      }
 
-    setInventory([...inventory, itemToAdd])
-    setShowAddModal(false)
+      const branchNameToId: any = { exxa: 1, tera: 2, cnx: 3, all: 99 }
+      const branchId = branchNameToId[user!.branch] || 1
+      await fetch('/api/inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ingredient_id: ingredient.id,
+          branch_id: branchId,
+          quantity: newItem.qtyInStock,
+          unit: newItem.unit,
+          min_threshold: newItem.reorderLevel,
+        })
+      })
+
+      // Reload from backend
+      const rows = await fetch(`/api/inventory?branch_id=${branchId}`).then(r=>r.json())
+      const mapped: InventoryItem[] = rows.map((r: any) => ({
+        id: r.id,
+        ingredientId: r.ingredient_id,
+        ingredient: r.ingredient,
+        unit: r.unit || 'pcs',
+        qtyInStock: Number(r.quantity || 0),
+        unitCost: Number(r.unitCost || 0),
+        reorderLevel: Number(r.min_threshold || 0),
+        lastUpdated: r.updated_at || r.created_at || new Date().toISOString().split('T')[0],
+      }))
+      setInventory(mapped)
+      setShowAddModal(false)
+    } catch (e) {
+      console.error(e)
+      alert('Failed to add inventory item')
+    }
     setNewItem({
       ingredient: "",
       unit: "kg",

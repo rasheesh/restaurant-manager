@@ -39,6 +39,9 @@ export default function Dashboard() {
   const [showCreditModal, setShowCreditModal] = useState(false)
   const [creditTransactions, setCreditTransactions] = useState<CreditTransaction[]>([])
   const [recentActivities, setRecentActivities] = useState<any[]>([])
+  const [summary, setSummary] = useState<any>({ subtotal: 0, discount: 0, tax: 0, total: 0, orders: 0 })
+  const [topItems, setTopItems] = useState<any[]>([])
+  const [lowStock, setLowStock] = useState<any[]>([])
   const router = useRouter()
 
   useEffect(() => {
@@ -47,9 +50,30 @@ export default function Dashboard() {
       router.push("/")
       return
     }
-    setUser(JSON.parse(userData))
+    const parsed = JSON.parse(userData)
+    setUser(parsed)
     loadCreditTransactions()
     loadRecentActivities()
+    // Load reports and low stock
+    const branchNameToId: any = { exxa: 1, tera: 2, cnx: 3, all: 99 }
+    const branchId = branchNameToId[parsed.branch] || 1
+    const today = new Date().toISOString().slice(0, 10)
+    fetch(`/api/reports?from=${today}&to=${today}&branch_id=${branchId}`)
+      .then(r => r.json())
+      .then((data) => {
+        if (data?.summary) setSummary(data.summary)
+        if (Array.isArray(data?.topItems)) setTopItems(data.topItems)
+      })
+      .catch(() => {})
+    fetch(`/api/inventory?branch_id=${branchId}`)
+      .then(r => r.json())
+      .then((rows) => {
+        if (Array.isArray(rows)) {
+          const lows = rows.filter((x: any) => Number(x.quantity || 0) <= Number(x.min_threshold || 0))
+          setLowStock(lows.slice(0, 10))
+        }
+      })
+      .catch(() => {})
   }, [router])
 
   const loadCreditTransactions = () => {
@@ -127,16 +151,16 @@ export default function Dashboard() {
           {/* Summary Cards */}
           <div className="grid grid-4 mb-20">
             <div className="summary-card">
-              <div className="summary-value">₱12,500</div>
+              <div className="summary-value">₱{Number(summary.total || 0).toLocaleString()}</div>
               <div className="summary-label">Today's Sales</div>
             </div>
             <div className="summary-card">
-              <div className="summary-value">₱7,800</div>
-              <div className="summary-label">COGS</div>
+              <div className="summary-value">₱{Number(summary.tax || 0).toLocaleString()}</div>
+              <div className="summary-label">Tax</div>
             </div>
             <div className="summary-card">
-              <div className="summary-value">₱4,700</div>
-              <div className="summary-label">Profit Margin</div>
+              <div className="summary-value">{Number(summary.orders || 0).toLocaleString()}</div>
+              <div className="summary-label">Orders</div>
             </div>
             <div className="summary-card">
               <div className="summary-value" style={{ color: totalCreditBalance > 0 ? "#dc3545" : "#28a745" }}>
@@ -175,19 +199,22 @@ export default function Dashboard() {
               <h3 className="card-title">⚠️ Low Stock Alerts</h3>
             </div>
             <div style={{ background: "#fff3cd", padding: "15px", borderRadius: "6px", border: "1px solid #ffeaa7" }}>
-              <p style={{ margin: "0 0 10px 0", color: "#856404" }}>
-                <strong>Chicken Breast:</strong> 1.2kg left (Reorder level: 5kg)
-              </p>
-              <p style={{ margin: 0, color: "#856404" }}>
-                <strong>Garlic:</strong> 0.5kg left (Reorder level: 1kg)
-              </p>
+              {lowStock.length === 0 ? (
+                <p style={{ margin: 0, color: "#856404" }}>No low stock items.</p>
+              ) : (
+                lowStock.map((x: any, idx: number) => (
+                  <p key={idx} style={{ margin: idx === lowStock.length - 1 ? 0 : "0 0 10px 0", color: "#856404" }}>
+                    <strong>{x.ingredient}:</strong> {Number(x.quantity || 0)} {x.unit || ''} left (Reorder level: {Number(x.min_threshold || 0)} {x.unit || ''})
+                  </p>
+                ))
+              )}
             </div>
           </div>
 
           {/* Top Dishes Chart */}
           <div className="card">
             <div className="card-header">
-              <h3 className="card-title">📊 Top 5 Dishes Sold Today</h3>
+              <h3 className="card-title">📊 Top Dishes Sold Today</h3>
             </div>
             <div className="grid grid-2">
               <div>
@@ -200,31 +227,18 @@ export default function Dashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td>Chicken Adobo</td>
-                      <td>45</td>
-                      <td>₱5,400</td>
-                    </tr>
-                    <tr>
-                      <td>Pork Sinigang</td>
-                      <td>38</td>
-                      <td>₱4,940</td>
-                    </tr>
-                    <tr>
-                      <td>Lumpiang Shanghai</td>
-                      <td>25</td>
-                      <td>₱1,250</td>
-                    </tr>
-                    <tr>
-                      <td>Halo-Halo</td>
-                      <td>20</td>
-                      <td>₱1,900</td>
-                    </tr>
-                    <tr>
-                      <td>Kare-Kare</td>
-                      <td>18</td>
-                      <td>₱3,240</td>
-                    </tr>
+                    {topItems.slice(0,5).map((ti: any, idx: number) => (
+                      <tr key={idx}>
+                        <td>{ti.name}</td>
+                        <td>{Number(ti.qty || 0)}</td>
+                        <td>₱{Number(ti.revenue || 0).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                    {topItems.length === 0 && (
+                      <tr>
+                        <td colSpan={3} style={{ color: "#6c757d", textAlign: 'center' }}>No sales yet today.</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -232,13 +246,7 @@ export default function Dashboard() {
                 {/* Simple Bar Chart Visualization */}
                 <div style={{ padding: "20px" }}>
                   <h4 style={{ marginBottom: "20px", color: "#2d5a27" }}>Orders Distribution</h4>
-                  {[
-                    { name: "Chicken Adobo", orders: 45, color: "#2d5a27" },
-                    { name: "Pork Sinigang", orders: 38, color: "#4a7c59" },
-                    { name: "Lumpiang Shanghai", orders: 25, color: "#6b9b76" },
-                    { name: "Halo-Halo", orders: 20, color: "#8cb893" },
-                    { name: "Kare-Kare", orders: 18, color: "#add5b0" },
-                  ].map((dish, index) => (
+                  {topItems.slice(0,5).map((dish: any, index: number) => (
                     <div key={index} style={{ marginBottom: "15px" }}>
                       <div
                         style={{
@@ -249,7 +257,7 @@ export default function Dashboard() {
                         }}
                       >
                         <span>{dish.name}</span>
-                        <span>{dish.orders} orders</span>
+                        <span>{Number(dish.qty || 0)} orders</span>
                       </div>
                       <div
                         style={{
@@ -261,9 +269,9 @@ export default function Dashboard() {
                       >
                         <div
                           style={{
-                            background: dish.color,
+                            background: "#2d5a27",
                             height: "100%",
-                            width: `${(dish.orders / 45) * 100}%`,
+                            width: `${(Number(dish.qty || 0) / Math.max(1, Number(topItems?.[0]?.qty || 1))) * 100}%`,
                             borderRadius: "4px",
                           }}
                         ></div>
