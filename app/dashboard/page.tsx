@@ -148,7 +148,11 @@ export default function Dashboard() {
               <button
                 className="btn btn-primary"
                 style={{ padding: "8px 16px", fontSize: "14px" }}
-                onClick={() => setShowCreditModal(true)}
+                onClick={() => {
+                  setShowCreditModal(true)
+                  // Refresh credit transactions when opening modal
+                  setTimeout(() => loadCreditTransactions(), 100)
+                }}
               >
                 💳 Credit Management
               </button>

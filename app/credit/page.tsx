@@ -62,22 +62,76 @@ export default function CreditPage() {
 
   const loadCreditTransactions = async () => {
     try {
-      const rows = await fetch('/api/credit_transactions').then(r=>r.json())
-      const processedTransactions = rows.map((transaction: any) => ({
-        id: transaction.id,
-        orderNumber: transaction.order_id || 0,
-        customerName: transaction.customer_name,
-        customerContact: transaction.contact || '',
-        amount: Number(transaction.amount || 0),
-        amountPaid: 0, // extend later if you add payment linking
-        remainingBalance: Number(transaction.amount || 0),
-        timestamp: new Date(transaction.created_at || Date.now()),
-        status: 'unpaid',
-        cashier: '',
-        payments: [],
-      }))
+      // Load from localStorage first (where POS stores credit transactions)
+      const localStorageCredits = JSON.parse(localStorage.getItem("creditTransactions") || "[]")
+      
+      // Also try to load from API as backup
+      let apiCredits: any[] = []
+      try {
+        const apiResponse = await fetch('/api/credit_transactions')
+        if (apiResponse.ok) {
+          apiCredits = await apiResponse.json()
+        }
+      } catch (error) {
+        console.log('API credit transactions not available, using localStorage only')
+      }
+
+      // Combine both sources, prioritizing localStorage for recent transactions
+      const allTransactions = [...localStorageCredits, ...apiCredits]
+      
+      // Remove duplicates based on order number and customer name
+      const uniqueTransactions = allTransactions.filter((transaction, index, self) => 
+        index === self.findIndex(t => 
+          t.orderNumber === transaction.orderNumber && 
+          t.customerName === transaction.customerName &&
+          Math.abs(new Date(t.timestamp).getTime() - new Date(transaction.timestamp).getTime()) < 60000 // within 1 minute
+        )
+      )
+
+      const processedTransactions = uniqueTransactions.map((transaction: any) => {
+        // Calculate total payments for this transaction
+        const payments = transaction.payments || []
+        const totalPaid = payments.reduce((sum: number, payment: any) => sum + Number(payment.amount || 0), 0)
+        const remainingBalance = Number(transaction.amount || 0) - totalPaid
+        
+        // Determine status based on remaining balance
+        let status: "unpaid" | "partial" | "paid" = "unpaid"
+        if (remainingBalance <= 0) {
+          status = "paid"
+        } else if (totalPaid > 0) {
+          status = "partial"
+        }
+
+        return {
+          id: transaction.id || Date.now() + Math.random(),
+          orderNumber: transaction.orderNumber || transaction.order_id || 0,
+          customerName: transaction.customerName || transaction.customer_name || 'Unknown Customer',
+          customerContact: transaction.customerContact || transaction.contact || '',
+          amount: Number(transaction.amount || 0),
+          amountPaid: totalPaid,
+          remainingBalance: Math.max(0, remainingBalance),
+          timestamp: new Date(transaction.timestamp || transaction.created_at || Date.now()),
+          status,
+          cashier: transaction.cashier || '',
+          payments: payments.map((payment: any) => ({
+            id: payment.id || Date.now() + Math.random(),
+            amount: Number(payment.amount || 0),
+            timestamp: new Date(payment.timestamp || payment.created_at || Date.now()),
+            cashier: payment.cashier || '',
+            method: payment.method || 'cash',
+          })),
+        }
+      })
+
+      // Sort by timestamp (newest first)
+      processedTransactions.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+      
       setCreditTransactions(processedTransactions)
-    } catch {}
+    } catch (error) {
+      console.error('Failed to load credit transactions:', error)
+      // Fallback to empty array if everything fails
+      setCreditTransactions([])
+    }
   }
 
   const openPaymentModal = (transaction: CreditTransaction) => {
@@ -95,42 +149,67 @@ export default function CreditPage() {
   const processPayment = async () => {
     if (!selectedTransaction || paymentAmount <= 0) return
 
-    const payment: Payment = {
-      id: Date.now(),
-      amount: paymentAmount,
-      timestamp: new Date(),
-      cashier: user?.email || "Unknown",
-      method: paymentMethod,
-    }
-
-    const updatedTransaction = {
-      ...selectedTransaction,
-      payments: [...selectedTransaction.payments, payment],
-    }
-
-    const updatedTransactions = creditTransactions.map((transaction) =>
-      transaction.id === selectedTransaction.id ? updatedTransaction : transaction,
-    )
-
-    // Persist as a credit payment (negative transaction) or separate payments table in future
     try {
-      await fetch('/api/credit_transactions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          credit_customer_id: 0, // optional: link to a real customer id if captured
-          order_id: selectedTransaction.orderNumber || null,
-          amount: -Math.abs(paymentAmount),
-          description: `Payment via ${paymentMethod}`,
-        }),
-      })
-    } catch {}
+      // Create payment record
+      const payment: Payment = {
+        id: Date.now(),
+        amount: paymentAmount,
+        timestamp: new Date(),
+        cashier: user?.email || "Unknown",
+        method: paymentMethod,
+      }
 
-    setCreditTransactions(updatedTransactions)
-    setShowPaymentModal(false)
-    setSelectedTransaction(null)
-    setPaymentAmount(0)
-    loadCreditTransactions()
+      // Update the transaction with the new payment
+      const updatedTransaction = {
+        ...selectedTransaction,
+        payments: [...selectedTransaction.payments, payment],
+        amountPaid: selectedTransaction.amountPaid + paymentAmount,
+        remainingBalance: Math.max(0, selectedTransaction.remainingBalance - paymentAmount),
+        status: selectedTransaction.remainingBalance - paymentAmount <= 0 ? "paid" : "partial" as "paid" | "partial",
+      }
+
+      // Update localStorage
+      const existingCredits = JSON.parse(localStorage.getItem("creditTransactions") || "[]")
+      const updatedCredits = existingCredits.map((transaction: any) => 
+        transaction.id === selectedTransaction.id ? updatedTransaction : transaction
+      )
+      localStorage.setItem("creditTransactions", JSON.stringify(updatedCredits))
+
+      // Also try to save to API if available
+      try {
+        const paymentPayload = {
+          credit_transaction_id: selectedTransaction.id,
+          amount: paymentAmount,
+          method: paymentMethod,
+          cashier: user?.email || "Unknown",
+          description: `Payment via ${paymentMethod}`,
+        }
+
+        await fetch('/api/credit_transactions/payments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(paymentPayload),
+        })
+      } catch (apiError) {
+        console.log('API payment recording failed, but localStorage updated successfully')
+      }
+
+      // Update local state
+      const updatedTransactions = creditTransactions.map((transaction) =>
+        transaction.id === selectedTransaction.id ? updatedTransaction : transaction,
+      )
+      setCreditTransactions(updatedTransactions)
+
+      // Show success message
+      alert(`Payment of ₱${paymentAmount.toFixed(2)} recorded successfully!`)
+      
+      setShowPaymentModal(false)
+      setSelectedTransaction(null)
+      setPaymentAmount(0)
+    } catch (error) {
+      console.error('Failed to process payment:', error)
+      alert('Failed to record payment. Please try again.')
+    }
   }
 
   const getTotalCreditBalance = () => {
@@ -176,6 +255,13 @@ export default function CreditPage() {
           <div className="top-bar">
             <h1 style={{ margin: 0, fontSize: "1.8rem", color: "#2d5a27" }}>Credit Management</h1>
             <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+              <button
+                className="btn btn-secondary"
+                style={{ padding: "6px 12px", fontSize: "14px" }}
+                onClick={loadCreditTransactions}
+              >
+                🔄 Refresh
+              </button>
               <span style={{ color: "#6c757d" }}>Total Outstanding: ₱{totalCreditBalance.toFixed(2)}</span>
             </div>
           </div>
