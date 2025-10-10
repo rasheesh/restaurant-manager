@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs"
 import { query } from "@/lib/mysql"
 
 // maps (IDs -> strings)
-const roleMap: Record<number, string> = { 1: "admin", 2: "manager", 3: "cashier" }
+const roleMap: Record<number, string> = { 1: "admin", 2: "supervisor", 3: "cashier" }
 const branchMap: Record<number, string> = { 1: "exxa", 2: "tera", 3: "cnx", 99: "all" }
 
 export async function POST(req: Request) {

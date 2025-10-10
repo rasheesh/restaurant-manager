@@ -40,7 +40,7 @@ import { query } from "@/lib/mysql"
 function mapRole(roleId: number) {
   switch (roleId) {
     case 1: return "Admin"
-    case 2: return "Manager"
+    case 2: return "Supervisor"
     case 3: return "Cashier"
     default: return "Unknown"
   }
@@ -86,7 +86,7 @@ export async function GET() {
 // ✅ role + branch mapping
 const roleMap: Record<string, number> = {
   admin: 1,
-  manager: 2,
+  supervisor: 2,
   cashier: 3,
 }
 

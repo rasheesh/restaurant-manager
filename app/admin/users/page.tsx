@@ -32,7 +32,7 @@ export default function UserManagement() {
 
   const roleMap: any = {
     1: "admin",
-    2: "manager",
+    2: "supervisor",
     3: "cashier",
   }
 
@@ -393,7 +393,7 @@ export default function UserManagement() {
                     <label>Role</label>
                     <select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}>
                       <option value="cashier">Cashier</option>
-                      <option value="manager">Manager</option>
+                      <option value="supervisor">Supervisor</option>
                       <option value="admin">Admin</option>
                     </select>
                   </div>
@@ -404,7 +404,7 @@ export default function UserManagement() {
                       <option value="exxa">EXXA</option>
                       <option value="tera">TERA</option>
                       <option value="cnx">CNX</option>
-                      {newUser.role === "admin" && <option value="all">All Branches</option>}
+                      {(newUser.role === "admin" || newUser.role === "supervisor") && <option value="all">All Branches</option>}
                     </select>
                   </div>
 

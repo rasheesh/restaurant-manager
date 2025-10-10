@@ -134,7 +134,7 @@ export default function Dashboard() {
   const outstandingCredits = creditTransactions.filter((t) => t.status !== "paid").length
 
   return (
-    <AuthGuard allowedRoles={["admin", "manager"]}>
+    <AuthGuard allowedRoles={["admin", "supervisor"]}>
       <div className="main-layout">
         {/* Sidebar Navigation */}
         <Sidebar user={user} currentPage="/dashboard" />

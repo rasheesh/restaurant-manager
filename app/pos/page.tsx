@@ -837,7 +837,7 @@ export default function POSPage() {
   const total = getCartTotal()
 
   return (
-    <AuthGuard allowedRoles={["admin", "manager", "cashier"]}>
+    <AuthGuard allowedRoles={["admin", "supervisor", "cashier"]}>
       <div className="main-layout">
         <Sidebar user={user} currentPage="/pos" />
 

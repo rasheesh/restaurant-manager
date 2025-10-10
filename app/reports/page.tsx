@@ -400,7 +400,7 @@ export default function ReportsPage() {
   const currentBranchData = []
 
   return (
-    <AuthGuard allowedRoles={["admin", "manager"]}>
+    <AuthGuard allowedRoles={["admin", "supervisor"]}>
       <div className="main-layout">
         <Sidebar user={user} currentPage="/reports" />
 

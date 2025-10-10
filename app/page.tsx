@@ -154,7 +154,7 @@ export default function LoginPage() {
           <br />
           <strong>Admin:</strong> adminexxa@gmail.com
           <br />
-          <strong>Manager:</strong> supervisortera@gmail.com
+          <strong>Supervisor:</strong> supervisortera@gmail.com
           <br />
           <strong>Cashier:</strong> cashiercnx1@gmail.com
           <br />

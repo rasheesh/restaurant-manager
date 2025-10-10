@@ -337,7 +337,7 @@ export default function InventoryPage() {
   const lowStockItems = getLowStockItems()
 
   return (
-    <AuthGuard allowedRoles={["admin", "manager"]}>
+    <AuthGuard allowedRoles={["admin", "supervisor"]}>
       <div className="main-layout">
         <Sidebar user={user} currentPage="/inventory" />
 

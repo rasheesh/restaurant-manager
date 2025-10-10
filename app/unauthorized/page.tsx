@@ -71,7 +71,7 @@ export default function UnauthorizedPage() {
                   case "cashier":
                     router.push("/pos")
                     break
-                  case "manager":
+                  case "supervisor":
                     router.push("/dashboard")
                     break
                   case "admin":

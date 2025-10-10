@@ -247,7 +247,7 @@ export default function CreditPage() {
   const partialCount = creditTransactions.filter((t) => t.status === "partial").length
 
   return (
-    <AuthGuard allowedRoles={["admin", "manager"]}>
+    <AuthGuard allowedRoles={["admin", "supervisor"]}>
       <div className="main-layout">
         <Sidebar user={user} currentPage="/credit" />
 

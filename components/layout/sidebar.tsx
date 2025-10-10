@@ -18,10 +18,10 @@ export default function Sidebar({ user, currentPage }: SidebarProps) {
 
   const menuItems = [
     { href: "/dashboard", label: "📊 Dashboard", roles: ["admin"] },
-    { href: "/dishes", label: "🍽️ Dish & Item Management", roles: ["admin", "manager"] },
-    { href: "/inventory", label: "📦 Inventory", roles: ["admin", "manager"] },
-    { href: "/pos", label: "🛒 Point of Sale", roles: ["admin", "manager", "cashier"] },
-    { href: "/credit", label: "💳 Credit Management", roles: ["admin", "manager"] },
+    { href: "/dishes", label: "🍽️ Dish & Item Management", roles: ["admin", "supervisor"] },
+    { href: "/inventory", label: "📦 Inventory", roles: ["admin", "supervisor"] },
+    { href: "/pos", label: "🛒 Point of Sale", roles: ["admin", "supervisor", "cashier"] },
+    { href: "/credit", label: "💳 Credit Management", roles: ["admin", "supervisor"] },
     { href: "/reports", label: "📈 Reports", roles: ["admin"] },
   ]
 
@@ -35,8 +35,8 @@ export default function Sidebar({ user, currentPage }: SidebarProps) {
         <div
           style={{
             display: "inline-block",
-            background: user.role === "admin" ? "#dc3545" : user.role === "manager" ? "#ffc107" : "#28a745",
-            color: user.role === "manager" ? "#000" : "#fff",
+            background: user.role === "admin" ? "#dc3545" : user.role === "supervisor" ? "#ffc107" : "#28a745",
+            color: user.role === "supervisor" ? "#000" : "#fff",
             padding: "2px 8px",
             borderRadius: "12px",
             fontSize: "0.75rem",

@@ -43,7 +43,7 @@ export default function AuthGuard({ children, allowedRoles = [], redirectTo }: A
           case "cashier":
             router.push("/pos")
             break
-          case "manager":
+          case "supervisor":
             router.push("/dashboard")
             break
           case "admin":
