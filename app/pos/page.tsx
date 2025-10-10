@@ -388,6 +388,11 @@ export default function POSPage() {
   }
 
   const removeFromCart = (index: number) => {
+    const item = cart[index]
+    if (item && !item.isCombo) {
+      // Restore servings when removing from cart
+      updateDishServings(item.dish.id, item.size === 'half' ? item.quantity * 0.5 : item.quantity)
+    }
     setCart(cart.filter((_, i) => i !== index))
   }
 
@@ -438,6 +443,15 @@ export default function POSPage() {
       });
       setCart(cart.map((ci, i) => (i === index ? { ...ci, quantity: allowedQty } : ci)));
     } else {
+      // Calculate serving difference and update servings
+      const oldQuantity = item.quantity;
+      const servingDiff = quantity - oldQuantity;
+      const servingChange = item.size === 'half' ? servingDiff * 0.5 : servingDiff;
+      
+      if (servingChange !== 0) {
+        updateDishServings(item.dish.id, -servingChange);
+      }
+      
       setCart(cart.map((ci, i) => (i === index ? { ...ci, quantity } : ci)));
     }
   }

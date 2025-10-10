@@ -273,9 +273,25 @@ export default function DishesPage() {
     )
   }
 
-  const deleteDish = (dishId: number) => {
+  const deleteDish = async (dishId: number) => {
     if (confirm("Are you sure you want to delete this dish? This action cannot be undone.")) {
-      setDishes(dishes.filter((dish) => dish.id !== dishId))
+      try {
+        const response = await fetch(`/api/items?id=${dishId}`, {
+          method: 'DELETE',
+        })
+        
+        if (response.ok) {
+          // Remove from local state only after successful API call
+          setDishes(dishes.filter((dish) => dish.id !== dishId))
+          alert('Dish deleted successfully!')
+        } else {
+          const error = await response.json()
+          alert(`Failed to delete dish: ${error.error || 'Unknown error'}`)
+        }
+      } catch (error) {
+        console.error('Delete error:', error)
+        alert('Failed to delete dish. Please try again.')
+      }
     }
   }
 

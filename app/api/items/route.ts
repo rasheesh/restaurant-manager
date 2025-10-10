@@ -54,4 +54,37 @@ export async function PUT(req: Request) {
   }
 }
 
+// DELETE: delete item
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url)
+    const id = searchParams.get('id')
+    
+    if (!id) {
+      return NextResponse.json({ error: 'id is required' }, { status: 400 })
+    }
+
+    // Check if item exists
+    const existingItem = await query<any>(
+      `SELECT id FROM items WHERE id = ?`,
+      [id]
+    )
+
+    if (!existingItem || existingItem.length === 0) {
+      return NextResponse.json({ error: 'Item not found' }, { status: 404 })
+    }
+
+    // Delete related records first (recipes, order_items, etc.)
+    await query(`DELETE FROM item_ingredients WHERE item_id = ?`, [id])
+    await query(`DELETE FROM order_items WHERE item_id = ?`, [id])
+    
+    // Delete the item
+    await query(`DELETE FROM items WHERE id = ?`, [id])
+    
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message || 'Failed to delete item' }, { status: 500 })
+  }
+}
+
 
