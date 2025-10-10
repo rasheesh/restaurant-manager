@@ -9,7 +9,7 @@ export async function GET(req: Request) {
     const to = searchParams.get('to')
     const branchId = searchParams.get('branch_id')
 
-    const dateFilter = from && to ? 'AND DATE(o.created_at) BETWEEN ? AND ?' : ''
+    const dateFilter = from && to ? 'AND o.created_at BETWEEN CONCAT(?, " 00:00:00") AND CONCAT(?, " 23:59:59")' : ''
     const params: any[] = []
     if (branchId) params.push(Number(branchId))
     if (from && to) params.push(from, to)

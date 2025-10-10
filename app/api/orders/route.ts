@@ -24,9 +24,48 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Missing required order fields' }, { status: 400 })
   }
 
+  // Aggregate requested quantities per item (supporting fractional quantities)
+  const requestedByItem: Record<number, number> = {}
+  for (const it of items) {
+    if (it.item_id) {
+      const itemIdNum = Number(it.item_id)
+      const qty = Number(it.quantity)
+      requestedByItem[itemIdNum] = (requestedByItem[itemIdNum] || 0) + qty
+    }
+  }
+
   const conn = await getConnection()
   try {
     await conn.beginTransaction()
+
+    // Validate stock/servings availability atomically
+    if (Object.keys(requestedByItem).length) {
+      const ids = Object.keys(requestedByItem).map((k) => Number(k))
+      const placeholders = ids.map(() => '?').join(',')
+      const [rows]: any = await conn.query(
+        `SELECT id, name, available, COALESCE(servings_available,0) AS servings_available
+           FROM items
+          WHERE id IN (${placeholders})
+          FOR UPDATE`,
+        ids
+      )
+      const insufficient: string[] = []
+      for (const row of rows) {
+        const need = Number(requestedByItem[row.id] || 0)
+        const have = Number(row.servings_available || 0)
+        if (!row.available) {
+          insufficient.push(`${row.name} (unavailable)`) 
+          continue
+        }
+        if (have < need) {
+          insufficient.push(`${row.name} (need ${need}, have ${have})`)
+        }
+      }
+      if (insufficient.length) {
+        await conn.rollback()
+        return NextResponse.json({ error: `Insufficient servings: ${insufficient.join(', ')}` }, { status: 400 })
+      }
+    }
 
     // Compute totals
     let subtotal = 0
@@ -128,13 +167,13 @@ export async function GET(req: Request) {
     const from = searchParams.get('from')
     const to = searchParams.get('to')
     const branchId = searchParams.get('branch_id')
-    const dateFilter = from && to ? 'AND DATE(o.created_at) BETWEEN ? AND ?' : ''
+    const dateFilter = from && to ? 'AND o.created_at BETWEEN CONCAT(?, " 00:00:00") AND CONCAT(?, " 23:59:59")' : ''
     const params: any[] = []
     if (branchId) params.push(Number(branchId))
     if (from && to) params.push(from, to)
 
     const [rows]: any = await conn.query(
-      `SELECT o.id, o.order_number, o.total, o.created_at, o.branch_id, o.user_id,
+      `SELECT o.id, o.order_number, o.total, o.created_at, o.branch_id, o.user_id, o.payment_method,
               COUNT(oi.id) AS items_count
          FROM orders o
          LEFT JOIN order_items oi ON oi.order_id = o.id

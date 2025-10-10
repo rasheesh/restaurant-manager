@@ -251,6 +251,10 @@ export default function DishesPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string>("All")
   const [searchQuery, setSearchQuery] = useState<string>("")
+  const [categories, setCategories] = useState<Array<{ id: number; name: string }>>([])
+  const [newDishImageUrl, setNewDishImageUrl] = useState<string>("")
+  const [formError, setFormError] = useState<string>("")
+  const [uploading, setUploading] = useState<boolean>(false)
   const [newDish, setNewDish] = useState<Dish>({
     id: 0,
     name: "",
@@ -299,7 +303,7 @@ export default function DishesPage() {
         })))
       }
       if (Array.isArray(cats)) {
-        // could store categories in state if needed later
+        setCategories(cats.filter((c:any)=>c && c.id && c.name))
       }
     })
   }, [router])
@@ -420,10 +424,15 @@ export default function DishesPage() {
   }
 
   const handleSaveNewDish = async () => {
-    if (!newDish.name || newDish.ingredients.length === 0) {
-      alert("Please fill in dish name and add at least one ingredient")
-      return
-    }
+    const selectedCat = categories.find((c) => c.name === newDish.category)
+    const errors: string[] = []
+    if (!newDish.name.trim()) errors.push('Dish name is required')
+    if (!selectedCat) errors.push('Please select a valid category')
+    if (newDish.servings <= 0) errors.push('Servings must be greater than 0')
+    if (newDish.pricePerServing < 0) errors.push('Price per serving must be 0 or more')
+    if (newDish.ingredients.length === 0) errors.push('Add at least one ingredient')
+    setFormError(errors.join('\n'))
+    if (errors.length) return
 
     try {
       const cat = newDish.category || 'Uncategorized'
@@ -434,15 +443,16 @@ export default function DishesPage() {
         body: JSON.stringify({
           name: newDish.name,
           price: newDish.pricePerServing,
-          category_id: undefined,
+          category_id: selectedCat?.id ?? null,
           available: newDish.status !== 'hidden',
           servings_available: newDish.servings,
           total_servings: newDish.servings,
+          image_url: newDishImageUrl || null,
         })
       })
       const data = await res.json()
       if (!res.ok) {
-        alert(data.error || 'Failed to create item')
+        setFormError(data.error || 'Failed to create item')
         return
       }
       const itemId = data.id
@@ -471,9 +481,10 @@ export default function DishesPage() {
       const added: Dish = { ...newDish, id: itemId }
       setDishes([...dishes, added])
       setShowAddModal(false)
+      setFormError("")
     } catch (e) {
       console.error(e)
-      alert('Failed to create item')
+      setFormError('Failed to create item')
     }
     setNewDish({
       id: 0,
@@ -488,6 +499,7 @@ export default function DishesPage() {
       category: "Main Course",
       status: "available",
     })
+    setNewDishImageUrl("")
   }
 
   const handleEditDish = (dish: Dish) => {
@@ -505,6 +517,7 @@ export default function DishesPage() {
   const handleSaveDish = async () => {
     if (!selectedDish) return
     try {
+      const selectedCat = categories.find((c) => c.name === selectedDish.category)
       await fetch('/api/items', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -512,7 +525,7 @@ export default function DishesPage() {
           id: selectedDish.id,
           name: selectedDish.name,
           price: selectedDish.pricePerServing,
-          category_id: undefined,
+          category_id: selectedCat?.id ?? null,
           available: selectedDish.status !== 'hidden',
           servings_available: selectedDish.servings,
           total_servings: selectedDish.servings,
@@ -558,7 +571,7 @@ export default function DishesPage() {
       setSelectedDish(null)
     } catch (e) {
       console.error(e)
-      alert('Failed to update item')
+      setFormError('Failed to update item')
     }
   }
 
@@ -843,6 +856,13 @@ export default function DishesPage() {
                     marginBottom: "30px",
                   }}
                 >
+                  {formError && (
+                    <div style={{ gridColumn: '1 / -1', background: '#f8d7da', color: '#721c24', border: '1px solid #f5c6cb', borderRadius: 6, padding: 12 }}>
+                      {formError.split('\n').map((line, i) => (
+                        <div key={i}>• {line}</div>
+                      ))}
+                    </div>
+                  )}
                   <div className="form-group">
                     <label className="form-label">Dish Name</label>
                     <input
@@ -862,10 +882,11 @@ export default function DishesPage() {
                       value={newDish.category}
                       onChange={(e) => setNewDish({ ...newDish, category: e.target.value })}
                     >
-                      {dishCategories.map((category) => (
-                        <option key={category} value={category}>
-                          {category}
-                        </option>
+                      {categories.length === 0 && dishCategories.map((category) => (
+                        <option key={category} value={category}>{category}</option>
+                      ))}
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.name}>{c.name}</option>
                       ))}
                     </select>
                   </div>
@@ -894,6 +915,71 @@ export default function DishesPage() {
                       }
                       placeholder="Enter price per serving"
                     />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Image URL (optional)</label>
+                    <input
+                      type="url"
+                      className="form-input"
+                      style={{ width: "100%", padding: "12px", fontSize: "14px" }}
+                      value={newDishImageUrl}
+                      onChange={(e) => setNewDishImageUrl(e.target.value)}
+                      placeholder="https://example.com/image.jpg"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Upload Image (mobile-friendly)</label>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={async (e) => {
+                          const f = e.target.files?.[0]
+                          if (!f) return
+                          try {
+                            setUploading(true)
+                            const fd = new FormData()
+                            fd.append('file', f)
+                            const res = await fetch('/api/upload', { method: 'POST', body: fd })
+                            const data = await res.json()
+                            if (res.ok && data?.url) {
+                              setNewDishImageUrl(data.url)
+                              setFormError("")
+                            } else {
+                              setFormError(data?.error || 'Upload failed')
+                            }
+                          } catch (err) {
+                            setFormError('Upload failed')
+                          } finally {
+                            setUploading(false)
+                          }
+                        }}
+                      />
+                      <button
+                        className="btn btn-secondary"
+                        type="button"
+                        disabled={uploading}
+                        onClick={() => {
+                          const input = document.createElement('input')
+                          input.type = 'file'
+                          input.accept = 'image/*'
+                          input.onchange = (ev: any) => {
+                            const f = ev.target.files?.[0]
+                            if (!f) return
+                            const dt = new DataTransfer()
+                            dt.items.add(f)
+                            ;(document.querySelector('input[type=file][accept^="image/"]') as HTMLInputElement)?.dispatchEvent(new Event('change'))
+                          }
+                          input.click()
+                        }}
+                      >
+                        {uploading ? 'Uploading...' : 'Choose Image'}
+                      </button>
+                      {newDishImageUrl && (
+                        <img src={newDishImageUrl} alt="preview" style={{ height: 48, borderRadius: 6, border: '1px solid #e9ecef' }} />
+                      )}
+                    </div>
                   </div>
                   <div className="form-group">
                     <label className="form-label">Total Selling Price (₱)</label>

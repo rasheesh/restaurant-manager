@@ -5,6 +5,7 @@ import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import "./globals.css"
+import RouteProgress from "../components/route-progress"
 
 export const metadata: Metadata = {
   title: "Food Business POS - Filipino Food Business Management",
@@ -20,6 +21,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${GeistSans.variable} ${GeistMono.variable}`}>
+        <RouteProgress />
         <Suspense fallback={null}>{children}</Suspense>
         <Analytics />
       </body>

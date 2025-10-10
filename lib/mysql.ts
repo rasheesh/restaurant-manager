@@ -20,13 +20,8 @@ export function getPool(): mysql.Pool {
     if (!databaseUrl) {
         throw new Error('MYSQL_URL or DATABASE_URL must be set in environment variables')
     }
-    pool = mysql.createPool({
-        uri: databaseUrl,
-        waitForConnections: true,
-        connectionLimit: 10,
-        queueLimit: 0,
-        ssl: getSslConfig(),
-    })
+    // mysql2 supports DSN string directly
+    pool = mysql.createPool(databaseUrl)
     return pool
 }
 

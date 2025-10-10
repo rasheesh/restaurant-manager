@@ -55,17 +55,21 @@ export default function Dashboard() {
     loadCreditTransactions()
     loadRecentActivities()
     // Load reports and low stock
-    const branchNameToId: any = { exxa: 1, tera: 2, cnx: 3, all: 99 }
-    const branchId = branchNameToId[parsed.branch] || 1
+    const branchNameToId: any = { exxa: 1, tera: 2, cnx: 3, all: null }
+    const branchId = branchNameToId[parsed.branch]
     const today = new Date().toISOString().slice(0, 10)
-    fetch(`/api/reports?from=${today}&to=${today}&branch_id=${branchId}`)
+    const reportsUrl = branchId == null
+      ? `/api/reports?from=${today}&to=${today}`
+      : `/api/reports?from=${today}&to=${today}&branch_id=${branchId}`
+    fetch(reportsUrl)
       .then(r => r.json())
       .then((data) => {
         if (data?.summary) setSummary(data.summary)
         if (Array.isArray(data?.topItems)) setTopItems(data.topItems)
       })
       .catch(() => {})
-    fetch(`/api/inventory?branch_id=${branchId}`)
+    const invUrl = branchId == null ? `/api/inventory` : `/api/inventory?branch_id=${branchId}`
+    fetch(invUrl)
       .then(r => r.json())
       .then((rows) => {
         if (Array.isArray(rows)) {
@@ -97,11 +101,22 @@ export default function Dashboard() {
   }
 
   const loadRecentActivities = () => {
-    const activities = JSON.parse(localStorage.getItem("activityLog") || "[]")
-    const sortedActivities = activities
-      .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-      .slice(0, 10)
-    setRecentActivities(sortedActivities)
+    const today = new Date().toISOString().slice(0,10)
+    const branchNameToId: any = { exxa: 1, tera: 2, cnx: 3, all: null }
+    const branchId = user ? branchNameToId[(user as any).branch] : null
+    const url = branchId == null ? `/api/orders?from=${today}&to=${today}` : `/api/orders?from=${today}&to=${today}&branch_id=${branchId}`
+    fetch(url)
+      .then(r=>r.json())
+      .then((rows)=>{
+        if (!Array.isArray(rows)) { setRecentActivities([]); return }
+        const activities = rows.slice(0,10).map((o:any)=>({
+          id: `ORD-${o.id}`,
+          timestamp: o.created_at || new Date().toISOString(),
+          description: `Order #${String(o.order_number||'').padStart(4,'0')} - ₱${Number(o.total||0).toFixed(2)}`,
+        }))
+        setRecentActivities(activities)
+      })
+      .catch(()=>setRecentActivities([]))
   }
 
   const getTotalCreditBalance = () => {

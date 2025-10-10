@@ -5,16 +5,19 @@ import { query, getConnection } from '@/lib/mysql'
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
-    const branchId = Number(searchParams.get('branch_id') || '0') || 1
+    const branchParam = searchParams.get('branch_id')
+    const hasBranch = branchParam !== null && branchParam !== ''
+    const branchId = hasBranch ? Number(branchParam) : null
     const rows = await query<any>(
       `SELECT inv.id, inv.ingredient_id, inv.branch_id, inv.quantity, inv.unit, inv.min_threshold,
               inv.created_at, inv.updated_at,
               ing.name AS ingredient, ing.cost_per_unit AS unitCost
          FROM inventory inv
          JOIN ingredients ing ON inv.ingredient_id = ing.id
-        WHERE inv.branch_id = ?
+        WHERE 1=1
+          ${hasBranch ? 'AND inv.branch_id = ?' : ''}
         ORDER BY ing.name ASC`,
-      [branchId]
+      hasBranch ? [branchId] as any : undefined as any
     )
     return NextResponse.json(rows)
   } catch (error: any) {

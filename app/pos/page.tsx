@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { useToast } from "../../hooks/use-toast"
 import Sidebar from "../../components/layout/sidebar"
 import AuthGuard from "../../components/auth/auth-guard"
 
@@ -215,6 +216,8 @@ export default function POSPage() {
   const [referenceNumber, setReferenceNumber] = useState<string>("")
   const router = useRouter()
   const [processingCheckout, setProcessingCheckout] = useState(false)
+  const { toast } = useToast()
+  const [loadingItems, setLoadingItems] = useState(true)
 
   useEffect(() => {
     const userData = localStorage.getItem("user")
@@ -232,6 +235,7 @@ export default function POSPage() {
       }
     }
     // Load items from backend
+    setLoadingItems(true)
     fetch("/api/items")
       .then((r) => r.json())
       .then((rows) => {
@@ -240,6 +244,7 @@ export default function POSPage() {
             id: r.id,
             name: r.name,
             price: Number(r.price ?? 0),
+            halfPrice: r.half_price != null ? Number(r.half_price) : Number(r.price ?? 0) / 2,
             category: r.category || "Uncategorized",
             available: !!r.available,
             servingsAvailable: Number(r.servings_available ?? 0),
@@ -250,6 +255,7 @@ export default function POSPage() {
         }
       })
       .catch(() => {})
+      .finally(()=> setLoadingItems(false))
   }, [router])
 
   const categories = ["All", ...Array.from(new Set(dishes.map((dish) => dish.category)))]
@@ -265,13 +271,18 @@ export default function POSPage() {
 
   const addToCart = (dish: Dish, size: "regular" | "half" = "regular") => {
     if (dish.servingsAvailable <= 0) {
-      alert(`${dish.name} is sold out!`)
+      toast({ title: 'Sold out', description: `${dish.name} is sold out!`, duration: 3000 })
       return
     }
 
     let price = dish.price
-    if (size === "half" && dish.halfPrice) {
-      price = dish.halfPrice
+    if (size === "half") {
+      price = dish.halfPrice ?? dish.price / 2
+    }
+    const needed = size === 'half' ? 0.5 : 1
+    if (dish.servingsAvailable < needed) {
+      toast({ title: 'Insufficient stock', description: `Not enough servings left for ${dish.name}`, duration: 3000 })
+      return
     }
 
     const existingItem = cart.find((item) => item.dish.id === dish.id && item.size === size && !item.isCombo)
@@ -282,7 +293,7 @@ export default function POSPage() {
       setCart([...cart, { dish, quantity: 1, size, price }])
     }
 
-    updateDishServings(dish.id, -1)
+    updateDishServings(dish.id, size === 'half' ? -0.5 : -1)
   }
 
   const updateDishServings = (dishId: number, servingChange: number) => {
@@ -315,13 +326,13 @@ export default function POSPage() {
 
   const addComboItemToDish = (dish: Dish, size: "regular" | "half" = "regular") => {
     if (dish.servingsAvailable <= 0) {
-      alert(`${dish.name} is sold out and cannot be added to combo!`)
+      toast({ title: 'Sold out', description: `${dish.name} cannot be added to combo`, duration: 3000 })
       return
     }
 
     let price = dish.price
-    if (size === "half" && dish.halfPrice) {
-      price = dish.halfPrice
+    if (size === "half") {
+      price = dish.halfPrice ?? dish.price / 2
     }
 
     const existingComboItem = comboItems.find((item) => item.dish.id === dish.id && item.size === size)
@@ -364,7 +375,7 @@ export default function POSPage() {
     setCart([...cart, comboCartItem])
 
     comboItems.forEach((item) => {
-      updateDishServings(item.dish.id, -1)
+      updateDishServings(item.dish.id, item.size === 'half' ? -0.5 : -1)
     })
     // Reduce rice servings
     const riceItem = dishes.find((dish) => dish.category === "Rice")
@@ -476,7 +487,7 @@ export default function POSPage() {
             item_id: ci.dish.id,
             name_snapshot: ci.dish.name,
             unit_price: ci.price,
-            quantity: ci.quantity,
+            quantity: ci.size === 'half' ? ci.quantity * 0.5 : ci.quantity,
           })
         } else {
           // Combo: push each component as quantity aggregated
@@ -486,7 +497,7 @@ export default function POSPage() {
               item_id: sub.dish.id,
               name_snapshot: sub.dish.name,
               unit_price: sub.price,
-              quantity: qty,
+              quantity: sub.size === 'half' ? qty * 0.5 : qty,
             })
           }
           // Also add one rice if available in dishes list
@@ -546,7 +557,7 @@ export default function POSPage() {
       }
     } catch (e) {
       console.error(e)
-      alert('Failed to process order. Please try again.')
+      toast({ title: 'Order failed', description: (e as any)?.message || 'Failed to process order', duration: 4000 })
       setProcessingCheckout(false)
       return
     }
@@ -735,8 +746,26 @@ export default function POSPage() {
     localStorage.setItem("soldOutTracking", JSON.stringify(existingSoldOutData))
   }
 
+  const SpinnerOverlay = () => (
+    processingCheckout ? (
+      <div style={{ position:'fixed', inset:0, background:'rgba(255,255,255,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex: 2000 }}>
+        <div style={{ width: 42, height: 42, border:'4px solid #2d5a27', borderTopColor:'transparent', borderRadius:'50%', animation:'spin 0.8s linear infinite' }} />
+        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      </div>
+    ) : null
+  )
+
   if (!user) {
-    return <div>Loading...</div>
+    return (
+      <div style={{ padding: 20 }}>
+        <div style={{ height: 12, background: '#e9ecef', borderRadius: 6, width: 160, marginBottom: 12 }} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} style={{ background: '#f8f9fa', border: '1px solid #e9ecef', height: 120, borderRadius: 8 }} />
+          ))}
+        </div>
+      </div>
+    )
   }
 
   const total = getCartTotal()
@@ -747,6 +776,7 @@ export default function POSPage() {
         <Sidebar user={user} currentPage="/pos" />
 
         <main className="main-content">
+          <SpinnerOverlay />
           <div className="top-bar">
             <h1 style={{ margin: 0, fontSize: "1.8rem", color: "#2d5a27" }}>Point of Sale</h1>
             <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
@@ -817,7 +847,10 @@ export default function POSPage() {
                   flex: 1,
                 }}
               >
-                {filteredDishes.map((dish) => (
+                {loadingItems && Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} style={{ background:'#f8f9fa', border:'1px solid #e9ecef', borderRadius:8, height:120 }} />
+                ))}
+                {!loadingItems && filteredDishes.map((dish) => (
                   <div
                     key={dish.id}
                     style={{
@@ -1319,7 +1352,7 @@ export default function POSPage() {
                   >
                     <option value="cash">Cash</option>
                     <option value="card">Card</option>
-                    <option value=" gcash">GCash</option>
+                    <option value="gcash">GCash</option>
                     <option value="paymaya">PayMaya</option>
                     <option value="credit">Credit (Utang Muna)</option>
                   </select>
@@ -1428,7 +1461,7 @@ export default function POSPage() {
                         !referenceNumber.trim())
                     }
                   >
-                    Confirm Sale
+                    {processingCheckout ? 'Processing…' : 'Confirm Sale'}
                   </button>
                 </div>
               </div>

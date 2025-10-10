@@ -84,30 +84,11 @@ interface Activity {
   metadata?: any
 }
 
-const sampleBranchSales: BranchSales[] = [
-  { branch: "EXXA", sales: 12500, orders: 85, avgOrderValue: 147 },
-  { branch: "TERA", sales: 9200, orders: 62, avgOrderValue: 148 },
-  { branch: "CNX", sales: 11800, orders: 78, avgOrderValue: 151 },
-]
+const sampleBranchSales: BranchSales[] = []
 
-const sampleDishSales: DishSales[] = [
-  { name: "Chicken Adobo", quantity: 45, revenue: 5400, profit: 2790 },
-  { name: "Pork Sinigang", quantity: 38, revenue: 4940, profit: 2470 },
-  { name: "Lumpiang Shanghai", quantity: 25, revenue: 1250, profit: 750 },
-  { name: "Halo-Halo", quantity: 20, revenue: 1900, profit: 1000 },
-  { name: "Kare-Kare", quantity: 18, revenue: 3240, profit: 1710 },
-  { name: "Pancit Canton", quantity: 22, revenue: 1870, profit: 1100 },
-  { name: "Lechon Kawali", quantity: 15, revenue: 2400, profit: 1200 },
-]
+const sampleDishSales: DishSales[] = []
 
-const monthlySalesData = [
-  { month: "Jan", sales: 285000, profit: 142500 },
-  { month: "Feb", sales: 298000, profit: 149000 },
-  { month: "Mar", sales: 312000, profit: 156000 },
-  { month: "Apr", sales: 295000, profit: 147500 },
-  { month: "May", sales: 318000, profit: 159000 },
-  { month: "Jun", sales: 335000, profit: 167500 },
-]
+const monthlySalesData: any[] = []
 
 const sampleSalesTransactions: SalesTransaction[] = []
 
@@ -134,6 +115,9 @@ export default function ReportsPage() {
   const [activitySearchTerm, setActivitySearchTerm] = useState<string>("")
   const [activityDateFilter, setActivityDateFilter] = useState<string>("all")
   const router = useRouter()
+  const [errorMsg, setErrorMsg] = useState<string>("")
+  const [loadingReports, setLoadingReports] = useState(false)
+  const [loadingOrders, setLoadingOrders] = useState(false)
 
   useEffect(() => {
     const userData = localStorage.getItem("user")
@@ -149,22 +133,78 @@ export default function ReportsPage() {
     setUser(parsedUser)
     loadCreditTransactions()
     loadSoldOutData()
-    loadSalesTransactions()
-    loadActivityLogs()
-    // Load sales summary from backend
-    const branchNameToId: any = { exxa: 1, tera: 2, cnx: 3, all: 99 }
-    const branchId = branchNameToId[parsedUser.branch] || 1
-    const from = new Date().toISOString().slice(0,10)
-    const to = from
-    fetch(`/api/reports?from=${from}&to=${to}&branch_id=${branchId}`)
-      .then(r=>r.json())
-      .then((data)=>{
-        if (data?.summary) setReportsSummary(data.summary)
-        if (Array.isArray(data?.topItems)) setReportsTopItems(data.topItems)
-        if (Array.isArray(data?.payments)) setReportsPayments(data.payments)
-      })
-      .catch(()=>{})
+    refetchAll(parsedUser, selectedPeriod, dateRange)
   }, [router])
+
+  useEffect(() => {
+    if (!user) return
+    refetchAll(user, selectedPeriod, dateRange)
+  }, [selectedPeriod, dateRange.start, dateRange.end])
+
+  const computeRange = (period: string, custom: DateRange): { start: string; end: string } => {
+    const today = new Date()
+    const pad = (n:number)=> String(n).padStart(2,'0')
+    const iso = (d:Date)=> `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
+    if (period === 'today') {
+      const s = iso(today); return { start: s, end: s }
+    }
+    if (period === 'week') {
+      const s = new Date(today); s.setDate(s.getDate()-6); return { start: iso(s), end: iso(today) }
+    }
+    if (period === 'month') {
+      const s = new Date(today.getFullYear(), today.getMonth(), 1); return { start: iso(s), end: iso(today) }
+    }
+    return { start: custom.start, end: custom.end }
+  }
+
+  const refetchAll = (u: any, period: string, custom: DateRange) => {
+    setErrorMsg("")
+    const branchNameToId: any = { exxa: 1, tera: 2, cnx: 3, all: null }
+    const branchId = branchNameToId[u.branch]
+    const range = computeRange(period, custom)
+
+    const repUrl = branchId == null
+      ? `/api/reports?from=${range.start}&to=${range.end}`
+      : `/api/reports?from=${range.start}&to=${range.end}&branch_id=${branchId}`
+    setLoadingReports(true)
+    fetch(repUrl)
+      .then(async (r)=>{ if(!r.ok) throw new Error((await r.json())?.error || 'Failed to load reports'); return r.json() })
+      .then((data)=>{
+        setReportsSummary(data?.summary || { total:0, orders:0, tax:0, discount:0, subtotal:0 })
+        setReportsTopItems(Array.isArray(data?.topItems)? data.topItems : [])
+        setReportsPayments(Array.isArray(data?.payments)? data.payments : [])
+      })
+      .catch((e:any)=>{ setReportsSummary({ total:0, orders:0, tax:0, discount:0, subtotal:0 }); setReportsTopItems([]); setReportsPayments([]); setErrorMsg(e?.message || 'Failed to load reports') })
+      .finally(()=> setLoadingReports(false))
+
+    const ordUrl = branchId == null
+      ? `/api/orders?from=${range.start}&to=${range.end}`
+      : `/api/orders?from=${range.start}&to=${range.end}&branch_id=${branchId}`
+    setLoadingOrders(true)
+    fetch(ordUrl)
+      .then(r=>r.json())
+      .then((rows)=>{
+        if (!Array.isArray(rows)) { setSalesTransactions([]); setActivities([]); return }
+        const mapped = rows.map((o:any)=>({
+          id: `TXN-${o.id}`,
+          receiptNo: `RCP-${new Date(o.created_at || Date.now()).getFullYear()}-${String(o.order_number||0).padStart(4,'0')}`,
+          dateTime: new Date(o.created_at || Date.now()),
+          cashier: '',
+          customer: undefined,
+          paymentMethod: (o.payment_method || '').toString().toUpperCase().replace(/^./, (c:string)=>c.toUpperCase()),
+          totalAmount: Number(o.total || 0),
+          referenceNumber: undefined,
+          items: [],
+          orderType: 'takeout',
+        }))
+        setSalesTransactions(mapped)
+        const acts = rows.slice(0, 50).map((o:any)=>({ id: `ORD-${o.id}`, timestamp: o.created_at || new Date().toISOString(), type: 'order', description: `Order #${String(o.order_number||'').padStart(4,'0')} - ₱${Number(o.total||0).toFixed(2)}`, user: 'system' }))
+        setActivities(acts)
+        setFilteredActivities(acts)
+      })
+      .catch(()=>{ setSalesTransactions([]); setActivities([]); setFilteredActivities([]) })
+      .finally(()=> setLoadingOrders(false))
+  }
 
   const loadCreditTransactions = () => {
     const storedTransactions = JSON.parse(localStorage.getItem("creditTransactions") || "[]")
@@ -202,11 +242,12 @@ export default function ReportsPage() {
   }
 
   const loadSalesTransactions = () => {
-    const branchNameToId: any = { exxa: 1, tera: 2, cnx: 3, all: 99 }
-    const branchId = user ? (branchNameToId[user.branch] || 1) : 1
+    const branchNameToId: any = { exxa: 1, tera: 2, cnx: 3, all: null }
+    const branchId = user ? (branchNameToId[user.branch]) : null
     const start = new Date().toISOString().slice(0,10)
     const end = start
-    fetch(`/api/orders?from=${start}&to=${end}&branch_id=${branchId}`)
+    const url = branchId == null ? `/api/orders?from=${start}&to=${end}` : `/api/orders?from=${start}&to=${end}&branch_id=${branchId}`
+    fetch(url)
       .then(r=>r.json())
       .then((rows)=>{
         if (!Array.isArray(rows)) { setSalesTransactions([]); return }
@@ -226,15 +267,7 @@ export default function ReportsPage() {
       .catch(()=>setSalesTransactions([]))
   }
 
-  const loadActivityLogs = () => {
-    const storedActivities = JSON.parse(localStorage.getItem("activityLog") || "[]")
-    const processedActivities = storedActivities.map((activity: any) => ({
-      ...activity,
-      timestamp: activity.timestamp || new Date().toISOString(),
-    }))
-    setActivities(processedActivities)
-    setFilteredActivities(processedActivities)
-  }
+  const loadActivityLogs = () => { /* replaced by refetchAll -> orders */ }
 
   const viewTransactionDetails = (transaction: SalesTransaction) => {
     setSelectedTransaction(transaction)
@@ -345,19 +378,26 @@ export default function ReportsPage() {
   }
 
   if (!user) {
-    return <div>Loading...</div>
+    return (
+      <div style={{ padding: 20 }}>
+        <div style={{ height: 16, width: 240, background:'#e9ecef', borderRadius:6, marginBottom:12 }} />
+        <div className="grid grid-4 mb-20">
+          {Array.from({ length: 4 }).map((_,i)=> (
+            <div key={i} style={{ height: 80, background:'#f8f9fa', border:'1px solid #e9ecef', borderRadius: 8 }} />
+          ))}
+        </div>
+      </div>
+    )
   }
 
-  const totalSales = sampleBranchSales.reduce((sum, branch) => sum + branch.sales, 0)
-  const totalOrders = sampleBranchSales.reduce((sum, branch) => sum + branch.orders, 0)
-  const totalProfit = sampleDishSales.reduce((sum, dish) => sum + dish.profit, 0)
+  const totalSales = Number(reportsSummary.total || 0)
+  const totalOrders = Number(reportsSummary.orders || 0)
+  const totalProfit = Number(reportsSummary.total || 0) - Number(reportsSummary.subtotal || 0) + 0
   const totalCreditBalance = getTotalCreditBalance()
   const topSoldOutItems = getTopSoldOutItems()
 
   const isAdmin = user.role === "admin"
-  const currentBranchData = isAdmin
-    ? sampleBranchSales
-    : sampleBranchSales.filter((branch) => branch.branch.toLowerCase() === user.branch)
+  const currentBranchData = []
 
   return (
     <AuthGuard allowedRoles={["admin", "manager"]}>
@@ -475,26 +515,9 @@ export default function ReportsPage() {
                     <h3 className="card-title">Sales Trend</h3>
                   </div>
                   <div style={{ padding: "20px" }}>
-                    {monthlySalesData.map((month, index) => (
-                      <div
-                        key={month.month}
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          padding: "10px 0",
-                          borderBottom: index === monthlySalesData.length - 1 ? "none" : "1px solid #e9ecef",
-                        }}
-                      >
-                        <span style={{ fontWeight: "600" }}>{month.month} 2024</span>
-                        <div style={{ textAlign: "right" }}>
-                          <div style={{ color: "#2d5a27", fontWeight: "600" }}>₱{month.sales.toLocaleString()}</div>
-                          <div style={{ fontSize: "0.85rem", color: "#6c757d" }}>
-                            Profit: ₱{month.profit.toLocaleString()}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                    {monthlySalesData.length === 0 && (
+                      <div style={{ color: '#6c757d' }}>No trend data</div>
+                    )}
                   </div>
                 </div>
 
@@ -532,9 +555,15 @@ export default function ReportsPage() {
                     <div style={{ marginBottom: "20px" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
                         <span>Best Performing Dish</span>
-                        <span style={{ fontWeight: "600", color: "#2d5a27" }}>Chicken Adobo</span>
+                        <span style={{ fontWeight: "600", color: "#2d5a27" }}>
+                          {reportsTopItems?.[0]?.name || 'No data'}
+                        </span>
                       </div>
-                      <div style={{ fontSize: "0.85rem", color: "#6c757d" }}>45 orders • ₱5,400 revenue</div>
+                      <div style={{ fontSize: "0.85rem", color: "#6c757d" }}>
+                        {reportsTopItems?.[0] ? (
+                          <>₱{Number(reportsTopItems[0].revenue||0).toLocaleString()} • {Number(reportsTopItems[0].qty||0)} orders</>
+                        ) : '—'}
+                      </div>
                     </div>
 
                     <div>
@@ -559,88 +588,54 @@ export default function ReportsPage() {
             <div className="grid grid-2">
               <div className="card">
                 <div className="card-header">
-                  <h3 className="card-title">Sales by Time Period</h3>
+                  <h3 className="card-title">Top Items</h3>
                 </div>
                 <table className="table">
                   <thead>
                     <tr>
-                      <th>Time Period</th>
-                      <th>Orders</th>
+                      <th>Dish</th>
+                      <th>Qty</th>
                       <th>Revenue</th>
-                      <th>Avg Order</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td>Morning (6-11 AM)</td>
-                      <td>25</td>
-                      <td>₱3,200</td>
-                      <td>₱128</td>
-                    </tr>
-                    <tr>
-                      <td>Lunch (11 AM-3 PM)</td>
-                      <td>95</td>
-                      <td>₱15,800</td>
-                      <td>₱166</td>
-                    </tr>
-                    <tr>
-                      <td>Afternoon (3-6 PM)</td>
-                      <td>45</td>
-                      <td>₱6,900</td>
-                      <td>₱153</td>
-                    </tr>
-                    <tr>
-                      <td>Evening (6-10 PM)</td>
-                      <td>60</td>
-                      <td>₱7,600</td>
-                      <td>₱127</td>
-                    </tr>
+                    {reportsTopItems.length === 0 && (
+                      <tr>
+                        <td colSpan={3} style={{ color: '#6c757d', textAlign: 'center' }}>No data</td>
+                      </tr>
+                    )}
+                    {reportsTopItems.map((it:any, idx:number)=> (
+                      <tr key={idx}>
+                        <td>{it.name}</td>
+                        <td>{Number(it.qty||0)}</td>
+                        <td>₱{Number(it.revenue||0).toLocaleString()}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
 
               <div className="card">
                 <div className="card-header">
-                  <h3 className="card-title">Payment Methods</h3>
+                  <h3 className="card-title">Payments</h3>
                 </div>
-                <div style={{ padding: "20px" }}>
-                  {[
-                    { method: "Cash", percentage: 65, amount: 21775 },
-                    { method: "Card", percentage: 25, amount: 8375 },
-                    { method: "GCash", percentage: 10, amount: 3350 },
-                  ].map((payment, index) => (
-                    <div key={payment.method} style={{ marginBottom: "20px" }}>
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          marginBottom: "5px",
-                        }}
-                      >
-                        <span style={{ fontWeight: "600" }}>{payment.method}</span>
-                        <span>
-                          {payment.percentage}% • ₱{payment.amount.toLocaleString()}
-                        </span>
+                <div style={{ padding: '20px' }}>
+                  {reportsPayments.length === 0 && <div style={{ color: '#6c757d' }}>No data</div>}
+                  {reportsPayments.map((p:any, index:number)=>{
+                    const totalAmount = reportsPayments.reduce((s:number,x:any)=> s + Number(x.amount||0), 0)
+                    const percentage = totalAmount ? Math.round((Number(p.amount||0)/totalAmount)*100) : 0
+                    return (
+                      <div key={p.method} style={{ marginBottom: 20 }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', marginBottom: 5 }}>
+                          <span style={{ fontWeight: 600 }}>{p.method?.toUpperCase?.() || 'UNKNOWN'}</span>
+                          <span>{percentage}% • ₱{Number(p.amount||0).toLocaleString()}</span>
+                        </div>
+                        <div style={{ background:'#e9ecef', height: 8, borderRadius: 4, overflow:'hidden' }}>
+                          <div style={{ background: index===0?'#2d5a27': index===1?'#4a7c59':'#6b9b76', height:'100%', width: `${percentage}%`, borderRadius: 4 }} />
+                        </div>
                       </div>
-                      <div
-                        style={{
-                          background: "#e9ecef",
-                          height: "8px",
-                          borderRadius: "4px",
-                          overflow: "hidden",
-                        }}
-                      >
-                        <div
-                          style={{
-                            background: index === 0 ? "#2d5a27" : index === 1 ? "#4a7c59" : "#6b9b76",
-                            height: "100%",
-                            width: `${payment.percentage}%`,
-                            borderRadius: "4px",
-                          }}
-                        ></div>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             </div>
@@ -650,7 +645,7 @@ export default function ReportsPage() {
           {activeTab === "dishes" && (
             <div className="card">
               <div className="card-header">
-                <h3 className="card-title">Dish Performance Analysis</h3>
+                <h3 className="card-title">Dish Performance</h3>
               </div>
               <table className="table">
                 <thead>
@@ -658,44 +653,21 @@ export default function ReportsPage() {
                     <th>Dish Name</th>
                     <th>Quantity Sold</th>
                     <th>Revenue</th>
-                    <th>Profit</th>
-                    <th>Profit Margin</th>
-                    <th>Performance</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {sampleDishSales.map((dish, index) => {
-                    const profitMargin = (dish.profit / dish.revenue) * 100
-                    return (
-                      <tr key={dish.name}>
-                        <td style={{ fontWeight: "600" }}>{dish.name}</td>
-                        <td>{dish.quantity}</td>
-                        <td>₱{dish.revenue.toLocaleString()}</td>
-                        <td style={{ color: "#28a745", fontWeight: "600" }}>₱{dish.profit.toLocaleString()}</td>
-                        <td style={{ color: "#28a745", fontWeight: "600" }}>{profitMargin.toFixed(1)}%</td>
-                        <td>
-                          <div
-                            style={{
-                              background: "#e9ecef",
-                              height: "6px",
-                              borderRadius: "3px",
-                              overflow: "hidden",
-                              width: "100px",
-                            }}
-                          >
-                            <div
-                              style={{
-                                background: index < 2 ? "#28a745" : index < 4 ? "#ffc107" : "#6c757d",
-                                height: "100%",
-                                width: `${(dish.quantity / 45) * 100}%`,
-                                borderRadius: "3px",
-                              }}
-                            ></div>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
+                  {reportsTopItems.length === 0 && (
+                    <tr>
+                      <td colSpan={3} style={{ color: '#6c757d', textAlign: 'center' }}>No data</td>
+                    </tr>
+                  )}
+                  {reportsTopItems.map((it:any)=> (
+                    <tr key={it.item_id || it.name}>
+                      <td style={{ fontWeight: 600 }}>{it.name}</td>
+                      <td>{Number(it.qty||0)}</td>
+                      <td>₱{Number(it.revenue||0).toLocaleString()}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -1333,71 +1305,12 @@ export default function ReportsPage() {
           {/* Branch Comparison Tab (Admin Only) */}
           <RoleChecker allowedRoles={["admin"]}>
             {activeTab === "branches" && (
-              <>
-                <div className="card mb-20">
-                  <div className="card-header">
-                    <h3 className="card-title">Branch Performance Comparison</h3>
-                  </div>
-                  <table className="table">
-                    <thead>
-                      <tr>
-                        <th>Branch</th>
-                        <th>Sales</th>
-                        <th>Orders</th>
-                        <th>Avg Order Value</th>
-                        <th>Performance</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sampleBranchSales.map((branch, index) => (
-                        <tr key={branch.branch}>
-                          <td style={{ fontWeight: "600" }}>{branch.branch}</td>
-                          <td>₱{branch.sales.toLocaleString()}</td>
-                          <td>{branch.orders}</td>
-                          <td>₱{branch.avgOrderValue}</td>
-                          <td>
-                            <div
-                              style={{
-                                background: "#e9ecef",
-                                height: "8px",
-                                borderRadius: "4px",
-                                overflow: "hidden",
-                                width: "120px",
-                              }}
-                            >
-                              <div
-                                style={{
-                                  background: index === 0 ? "#28a745" : index === 1 ? "#ffc107" : "#2d5a27",
-                                  height: "100%",
-                                  width: `${(branch.sales / Math.max(...sampleBranchSales.map((b) => b.sales))) * 100}%`,
-                                  borderRadius: "4px",
-                                }}
-                              ></div>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              <div className="card">
+                <div className="card-header">
+                  <h3 className="card-title">Branch Comparison</h3>
                 </div>
-
-                <div className="grid grid-3">
-                  {sampleBranchSales.map((branch) => (
-                    <div key={branch.branch} className="summary-card">
-                      <div style={{ marginBottom: "10px", fontSize: "1.1rem", fontWeight: "600", color: "#2d5a27" }}>
-                        {branch.branch} Branch
-                      </div>
-                      <div className="summary-value" style={{ fontSize: "1.5rem" }}>
-                        ₱{branch.sales.toLocaleString()}
-                      </div>
-                      <div className="summary-label">Daily Sales</div>
-                      <div style={{ marginTop: "10px", fontSize: "0.9rem", color: "#6c757d" }}>
-                        {branch.orders} orders • ₱{branch.avgOrderValue} avg
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
+                <div style={{ padding: 20, color: '#6c757d' }}>Coming soon: backend endpoint to compare branches.</div>
+              </div>
             )}
           </RoleChecker>
         </main>
