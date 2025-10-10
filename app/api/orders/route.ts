@@ -121,9 +121,21 @@ export async function POST(req: Request) {
             [totalUse, r.ingredient_id, branch_id]
           )
           await conn.query(
-            `INSERT INTO inventory_movements (ingredient_id, branch_id, quantity_change, reason, order_id, reference, notes, created_by, created_at)
-             VALUES (?, ?, ?, 'sale', ?, ?, ?, ?, UTC_TIMESTAMP())`,
-            [r.ingredient_id, branch_id, -Math.abs(totalUse), orderId, reference_number, notes, user_id]
+            `INSERT INTO inventory_movements (
+                item_id, ingredient_id, branch_id, quantity_change, order_id, user_id, notes, movement_type, quantity, created_by
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              itemIdNum,
+              r.ingredient_id,
+              branch_id,
+              -Math.abs(totalUse),
+              orderId,
+              user_id,
+              notes,
+              'sale',
+              -Math.abs(totalUse),
+              user_id
+            ]
           )
         }
       }
