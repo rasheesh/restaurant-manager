@@ -34,7 +34,7 @@ interface Ingredient {
 
 const measurementUnits = ["kg", "g", "L", "mL", "pcs", "cups", "tbsp", "tsp", "lbs", "oz"]
 
-const dishCategories = ["Main Course", "Rice", "Dessert", "Drinks", "Appetizer", "Side Dish"]
+const dishCategories = ["Main Course", "Rice", "Dessert", "Drinks", "Appetizer", "Side Dish", "Groceries & Others"]
 
 const unitConversions: { [key: string]: { [key: string]: number } } = {
   // Weight conversions (base: grams)
@@ -121,7 +121,7 @@ export default function DishesPage() {
           );
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
   const [selectedCategory, setSelectedCategory] = useState<string>("All")
   const [searchQuery, setSearchQuery] = useState<string>("")
@@ -158,17 +158,17 @@ export default function DishesPage() {
     setUser(parsedUser)
     // Load categories and items
     Promise.all([
-      fetch('/api/categories').then(r=>r.json()).catch(()=>[]),
-      fetch('/api/items').then(r=>r.json()).catch(()=>[]),
+      fetch('/api/categories').then(r => r.json()).catch(() => []),
+      fetch('/api/items').then(r => r.json()).catch(() => []),
     ]).then(([cats, items]) => {
       if (Array.isArray(items)) {
-        setDishes(items.map((r:any)=>({
+        setDishes(items.map((r: any) => ({
           id: r.id,
           name: r.name,
           servings: r.total_servings ?? 0,
-          pricePerServing: Number(r.price??0),
+          pricePerServing: Number(r.price ?? 0),
           cost: 0,
-          totalSellingPrice: Number(r.price??0),
+          totalSellingPrice: Number(r.price ?? 0),
           profit: 0,
           profitPerServing: 0,
           category: r.category || 'Uncategorized',
@@ -177,7 +177,7 @@ export default function DishesPage() {
         })))
       }
       if (Array.isArray(cats)) {
-        setCategories(cats.filter((c:any)=>c && c.id && c.name))
+        setCategories(cats.filter((c: any) => c && c.id && c.name))
       }
     })
   }, [router])
@@ -250,14 +250,22 @@ export default function DishesPage() {
     const updatedDish = { ...newDish, [field]: value }
 
     if (field === "servings" || field === "pricePerServing") {
+      // For Groceries & Others, recalculate cost when quantity changes
+      if (newDish.category === "Groceries & Others" && field === "servings") {
+        const selectedItem = inventoryItems.find(item => item.name === newDish.name);
+        if (selectedItem) {
+          updatedDish.cost = selectedItem.costPerUnit * value;
+        }
+      }
+
       updatedDish.totalSellingPrice = calculateTotalSellingPrice(
         field === "servings" ? value : newDish.servings,
         field === "pricePerServing" ? value : newDish.pricePerServing,
       )
-      updatedDish.profit = calculateProfit(updatedDish.totalSellingPrice, newDish.cost)
+      updatedDish.profit = calculateProfit(updatedDish.totalSellingPrice, updatedDish.cost)
       updatedDish.profitPerServing = calculateProfitPerServing(
         updatedDish.totalSellingPrice,
-        newDish.cost,
+        updatedDish.cost,
         field === "servings" ? value : newDish.servings,
       )
     }
@@ -279,7 +287,7 @@ export default function DishesPage() {
         const response = await fetch(`/api/items?id=${dishId}`, {
           method: 'DELETE',
         })
-        
+
         if (response.ok) {
           // Remove from local state only after successful API call
           setDishes(dishes.filter((dish) => dish.id !== dishId))
@@ -315,25 +323,41 @@ export default function DishesPage() {
 
   const handleSaveNewDish = async () => {
     const selectedCat = categories.find((c) => c.name === newDish.category)
+    const isValidPredefinedCategory = dishCategories.includes(newDish.category)
     const errors: string[] = []
     if (!newDish.name.trim()) errors.push('Dish name is required')
-    if (!selectedCat) errors.push('Please select a valid category')
+    if (!selectedCat && !isValidPredefinedCategory) errors.push('Please select a valid category')
     if (newDish.servings <= 0) errors.push('Servings must be greater than 0')
     if (newDish.pricePerServing < 0) errors.push('Price per serving must be 0 or more')
-    if (newDish.ingredients.length === 0) errors.push('Add at least one ingredient')
+    if (newDish.category !== "Groceries & Others" && newDish.ingredients.length === 0) errors.push('Add at least one ingredient')
     setFormError(errors.join('\n'))
     if (errors.length) return
 
     try {
       const cat = newDish.category || 'Uncategorized'
-      // optional: ensure category exists (omitted for brevity)
+
+      // Ensure category exists in database
+      let categoryId = selectedCat?.id
+      if (!categoryId && isValidPredefinedCategory) {
+        // Create the category if it doesn't exist
+        const categoryRes = await fetch('/api/categories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newDish.category })
+        })
+        if (categoryRes.ok) {
+          const categoryData = await categoryRes.json()
+          categoryId = categoryData.id
+        }
+      }
+
       const res = await fetch('/api/items', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: newDish.name,
           price: newDish.pricePerServing,
-          category_id: selectedCat?.id ?? null,
+          category_id: categoryId ?? null,
           available: newDish.status !== 'hidden',
           servings_available: newDish.servings,
           total_servings: newDish.servings,
@@ -422,8 +446,8 @@ export default function DishesPage() {
         })
       })
       // Sync recipe: upsert desired, delete removed
-      const existingRows = await fetch(`/api/recipes?item_id=${selectedDish.id}`).then(r=>r.json()).catch(()=>[])
-      const ingAll = await fetch('/api/ingredients').then(r=>r.json()).catch(()=>[])
+      const existingRows = await fetch(`/api/recipes?item_id=${selectedDish.id}`).then(r => r.json()).catch(() => [])
+      const ingAll = await fetch('/api/ingredients').then(r => r.json()).catch(() => [])
       const desired = selectedDish.ingredients
       const desiredIds: number[] = []
       for (const ing of desired) {
@@ -754,15 +778,49 @@ export default function DishesPage() {
                     </div>
                   )}
                   <div className="form-group">
-                    <label className="form-label">Dish Name</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      style={{ width: "100%", padding: "12px", fontSize: "14px" }}
-                      value={newDish.name}
-                      onChange={(e) => setNewDish({ ...newDish, name: e.target.value })}
-                      placeholder="Enter dish name"
-                    />
+                    <label className="form-label">{newDish.category === "Groceries & Others" ? "Item Name" : "Dish Name"}</label>
+                    {newDish.category === "Groceries & Others" ? (
+                      <select
+                        className="form-select"
+                        style={{ width: "100%", padding: "12px", fontSize: "14px" }}
+                        value={newDish.name}
+                        onChange={(e) => {
+                          const selectedItem = inventoryItems.find(item => item.name === e.target.value);
+                          if (selectedItem) {
+                            const totalCost = selectedItem.costPerUnit * newDish.servings;
+                            setNewDish({
+                              ...newDish,
+                              name: e.target.value,
+                              pricePerServing: selectedItem.costPerUnit,
+                              cost: totalCost
+                            });
+                          } else {
+                            setNewDish({
+                              ...newDish,
+                              name: e.target.value,
+                              pricePerServing: 0,
+                              cost: 0
+                            });
+                          }
+                        }}
+                      >
+                        <option value="">Select inventory item...</option>
+                        {inventoryItems.map((item) => (
+                          <option key={item.name} value={item.name}>
+                            {item.name} - ₱{item.costPerUnit.toFixed(2)}/{item.unit} (Stock: {item.stock})
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        className="form-input"
+                        style={{ width: "100%", padding: "12px", fontSize: "14px" }}
+                        value={newDish.name}
+                        onChange={(e) => setNewDish({ ...newDish, name: e.target.value })}
+                        placeholder="Enter dish name"
+                      />
+                    )}
                   </div>
                   <div className="form-group">
                     <label className="form-label">Category</label>
@@ -772,16 +830,28 @@ export default function DishesPage() {
                       value={newDish.category}
                       onChange={(e) => setNewDish({ ...newDish, category: e.target.value })}
                     >
-                      {categories.length === 0 && dishCategories.map((category) => (
-                        <option key={category} value={category}>{category}</option>
-                      ))}
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.name}>{c.name}</option>
-                      ))}
+                      {(() => {
+                        // Combine dishCategories with database categories, removing duplicates
+                        const dbCategoryNames = categories.map(c => c.name);
+                        const allCategories = [...dishCategories];
+
+                        // Add database categories that aren't already in dishCategories
+                        categories.forEach(c => {
+                          if (!dishCategories.includes(c.name)) {
+                            allCategories.push(c.name);
+                          }
+                        });
+
+                        return allCategories.map((category) => (
+                          <option key={category} value={category}>{category}</option>
+                        ));
+                      })()}
                     </select>
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Number of Servings</label>
+                    <label className="form-label">
+                      {newDish.category === "Groceries & Others" ? "Quantity Available" : "Number of Servings"}
+                    </label>
                     <input
                       type="text"
                       inputMode="numeric"
@@ -793,11 +863,13 @@ export default function DishesPage() {
                         const val = e.target.value.replace(/^0+(?!$)/, "");
                         handleNewDishPriceChange("servings", val === "" ? 0 : Number.parseInt(val));
                       }}
-                      placeholder="e.g., 4"
+                      placeholder={newDish.category === "Groceries & Others" ? "e.g., 50" : "e.g., 4"}
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Selling Price per Serving (₱)</label>
+                    <label className="form-label">
+                      {newDish.category === "Groceries & Others" ? "Selling Price per Item (₱)" : "Selling Price per Serving (₱)"}
+                    </label>
                     <input
                       type="number"
                       step="0.01"
@@ -807,8 +879,16 @@ export default function DishesPage() {
                       onChange={(e) =>
                         handleNewDishPriceChange("pricePerServing", Number.parseFloat(e.target.value) || 0)
                       }
-                      placeholder="Enter price per serving"
+                      placeholder={newDish.category === "Groceries & Others" ? "Enter your selling price" : "Enter price per serving"}
                     />
+                    {newDish.category === "Groceries & Others" && (
+                      <small style={{ color: "#6c757d", fontSize: "12px", display: "block", marginTop: "4px" }}>
+                        Set your desired selling price (cost per unit: ₱{(() => {
+                          const selectedItem = inventoryItems.find(item => item.name === newDish.name);
+                          return selectedItem ? selectedItem.costPerUnit.toFixed(2) : "0.00";
+                        })()})
+                      </small>
+                    )}
                   </div>
                   <div className="form-group">
                     <label className="form-label">Image URL (optional)</label>
@@ -863,7 +943,7 @@ export default function DishesPage() {
                             if (!f) return
                             const dt = new DataTransfer()
                             dt.items.add(f)
-                            ;(document.querySelector('input[type=file][accept^="image/"]') as HTMLInputElement)?.dispatchEvent(new Event('change'))
+                              ; (document.querySelector('input[type=file][accept^="image/"]') as HTMLInputElement)?.dispatchEvent(new Event('change'))
                           }
                           input.click()
                         }}
@@ -896,7 +976,7 @@ export default function DishesPage() {
                   </div>
                 </div>
 
-                {newDish.ingredients.length > 0 && (
+                {newDish.category !== "Groceries & Others" && newDish.ingredients.length > 0 && (
                   <div style={{ overflowX: "auto", marginBottom: "20px" }}>
                     <table className="table" style={{ minWidth: "700px" }}>
                       <thead>
@@ -1004,9 +1084,11 @@ export default function DishesPage() {
                   </div>
                 )}
 
-                <button className="btn btn-secondary" style={{ marginBottom: "20px" }} onClick={addIngredientToNewDish}>
-                  + Add Ingredient
-                </button>
+                {newDish.category !== "Groceries & Others" && (
+                  <button className="btn btn-secondary" style={{ marginBottom: "20px" }} onClick={addIngredientToNewDish}>
+                    + Add Ingredient
+                  </button>
+                )}
 
                 <div
                   style={{
@@ -1020,7 +1102,7 @@ export default function DishesPage() {
                   }}
                 >
                   <div>
-                    <strong>Recipe Cost:</strong>
+                    <strong>{newDish.category === "Groceries & Others" ? "Item Cost:" : "Recipe Cost:"}</strong>
                     <br />₱{newDish.cost.toFixed(2)}
                   </div>
                   <div>
