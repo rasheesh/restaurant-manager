@@ -52,146 +52,6 @@ interface CreditCustomer {
   amountOwed: number
 }
 
-const sampleDishes: Dish[] = [
-  {
-    id: 1,
-    name: "Chicken Adobo",
-    price: 120,
-    halfPrice: 70,
-    category: "Main Course",
-    available: true,
-    servingsAvailable: 20,
-    totalServings: 20,
-  },
-  {
-    id: 2,
-    name: "Pork Sinigang",
-    price: 130,
-    halfPrice: 75,
-    category: "Main Course",
-    available: true,
-    servingsAvailable: 15,
-    totalServings: 15,
-  },
-  {
-    id: 3,
-    name: "Lumpiang Shanghai",
-    price: 50,
-    category: "Appetizer",
-    available: true,
-    servingsAvailable: 30,
-    totalServings: 30,
-  },
-  {
-    id: 4,
-    name: "Halo-Halo",
-    price: 95,
-    category: "Dessert",
-    available: true,
-    servingsAvailable: 10,
-    totalServings: 10,
-  },
-  {
-    id: 5,
-    name: "Kare-Kare",
-    price: 180,
-    halfPrice: 100,
-    category: "Main Course",
-    available: true,
-    servingsAvailable: 12,
-    totalServings: 12,
-  },
-  {
-    id: 6,
-    name: "Pancit Canton",
-    price: 85,
-    halfPrice: 50,
-    category: "Main Course",
-    available: true,
-    servingsAvailable: 18,
-    totalServings: 18,
-  },
-  {
-    id: 7,
-    name: "Lechon Kawali",
-    price: 160,
-    halfPrice: 90,
-    category: "Main Course",
-    available: true,
-    servingsAvailable: 8,
-    totalServings: 8,
-  },
-  {
-    id: 8,
-    name: "Buko Pie",
-    price: 75,
-    category: "Dessert",
-    available: true,
-    servingsAvailable: 6,
-    totalServings: 6,
-  },
-  {
-    id: 9,
-    name: "Fresh Buko Juice",
-    price: 45,
-    category: "Drinks",
-    available: true,
-    servingsAvailable: 25,
-    totalServings: 25,
-  },
-  {
-    id: 10,
-    name: "Iced Tea",
-    price: 25,
-    category: "Drinks",
-    available: true,
-    servingsAvailable: 30,
-    totalServings: 30,
-  },
-  {
-    id: 11,
-    name: "Calamansi Juice",
-    price: 35,
-    category: "Drinks",
-    available: true,
-    servingsAvailable: 20,
-    totalServings: 20,
-  },
-  {
-    id: 12,
-    name: "Sago't Gulaman",
-    price: 30,
-    category: "Drinks",
-    available: true,
-    servingsAvailable: 15,
-    totalServings: 15,
-  },
-  {
-    id: 13,
-    name: "Steamed Rice",
-    price: 15,
-    category: "Rice",
-    available: true,
-    servingsAvailable: 50,
-    totalServings: 50,
-  },
-  {
-    id: 14,
-    name: "Garlic Rice",
-    price: 20,
-    category: "Rice",
-    available: true,
-    servingsAvailable: 40,
-    totalServings: 40,
-  },
-]
-
-const defaultCombo = {
-  id: 1,
-  name: "Default Combo",
-  basePrice: 15, // Rice price
-  description: "1 Rice + Your choice of dish portions",
-}
 
 export default function POSPage() {
   const [user, setUser] = useState<User | null>(null)
@@ -293,7 +153,7 @@ export default function POSPage() {
       setCart([...cart, { dish, quantity: 1, size, price }])
     }
 
-    updateDishServings(dish.id, size === 'half' ? -0.5 : -1)
+    updateDishServings(dish.id, size === 'half' ? -0.5 : -1) // Subtract 0.5 for half, 1 for regular
   }
 
   const updateDishServings = (dishId: number, servingChange: number) => {
@@ -375,7 +235,7 @@ export default function POSPage() {
     setCart([...cart, comboCartItem])
 
     comboItems.forEach((item) => {
-      updateDishServings(item.dish.id, item.size === 'half' ? -0.5 : -1)
+      updateDishServings(item.dish.id, item.size === 'half' ? -0.5 : -1) // Subtract 0.5 for half, 1 for regular
     })
     // Reduce rice servings
     const riceItem = dishes.find((dish) => dish.category === "Rice")
@@ -435,13 +295,23 @@ export default function POSPage() {
     if (quantity <= 0) {
       removeFromCart(index);
     } else if (quantity > allowedQty) {
-      // Prevent exceeding inventory
-      toast({
-        title: 'Inventory limit reached',
-        description: `Cannot order more than available servings for ${item.dish.name}.`,
-        duration: 3000,
-      });
-      setCart(cart.map((ci, i) => (i === index ? { ...ci, quantity: allowedQty } : ci)));
+      // Prevent exceeding inventory - don't change quantity if it would go to 0
+      if (allowedQty <= 0) {
+        toast({
+          title: 'No more servings available',
+          description: `Cannot add more ${item.dish.name}. All servings are already in cart.`,
+          duration: 3000,
+        });
+        // Don't change the quantity, keep it at current value
+        return;
+      } else {
+        toast({
+          title: 'Inventory limit reached',
+          description: `Cannot order more than available servings for ${item.dish.name}.`,
+          duration: 3000,
+        });
+        setCart(cart.map((ci, i) => (i === index ? { ...ci, quantity: allowedQty } : ci)));
+      }
     } else {
       // Calculate serving difference and update servings
       const oldQuantity = item.quantity;
@@ -1225,8 +1095,8 @@ export default function POSPage() {
                 </div>
 
                 <div style={{ background: "#f8f9fa", padding: "15px", borderRadius: "6px", marginBottom: "20px" }}>
-                  <h4 style={{ margin: "0 0 8px 0", color: "#2d5a27" }}>{defaultCombo.name}</h4>
-                  <p style={{ margin: "0 0 8px 0", color: "#6c757d" }}>{defaultCombo.description}</p>
+                  <h4 style={{ margin: "0 0 8px 0", color: "#2d5a27" }}>Combo Meal</h4>
+                  <p style={{ margin: "0 0 8px 0", color: "#6c757d" }}>1 Rice + Your choice of dish portions</p>
                   <div style={{ fontSize: "0.9rem", color: "#6c757d" }}>
                     <strong>Fixed Price: ₱{comboMealPrice}</strong> (includes 1 rice + your selected dishes)
                   </div>

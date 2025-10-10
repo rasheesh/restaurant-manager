@@ -165,6 +165,28 @@ export default function InventoryPage() {
     return inventory.reduce((total, item) => total + item.qtyInStock * item.unitCost, 0)
   }
 
+  const deleteInventoryItem = async (itemId: number) => {
+    if (confirm("Are you sure you want to delete this inventory item? This action cannot be undone.")) {
+      try {
+        const response = await fetch(`/api/inventory?id=${itemId}`, {
+          method: 'DELETE',
+        })
+        
+        if (response.ok) {
+          // Remove from local state only after successful API call
+          setInventory(inventory.filter((item) => item.id !== itemId))
+          alert('Inventory item deleted successfully!')
+        } else {
+          const error = await response.json()
+          alert(`Failed to delete inventory item: ${error.error || 'Unknown error'}`)
+        }
+      } catch (error) {
+        console.error('Delete error:', error)
+        alert('Failed to delete inventory item. Please try again.')
+      }
+    }
+  }
+
   const handleAddNewItem = async () => {
     if (!newItem.ingredient.trim() || newItem.unitCost <= 0 || newItem.qtyInStock < 0) {
       alert("Please fill in all required fields with valid values")
@@ -485,16 +507,25 @@ export default function InventoryPage() {
                       <td style={{ fontSize: "14px", color: "#6c757d" }}>{item.dateAdded}</td>
                       <td style={{ fontSize: "14px", color: "#6c757d" }}>{item.lastUpdated}</td>
                       <td>
-                        <button
-                          className="btn btn-primary"
-                          style={{ padding: "6px 12px", fontSize: "14px" }}
-                          onClick={() => {
-                            setSelectedItem(item)
-                            setShowModal(true)
-                          }}
-                        >
-                          Adjust Stock
-                        </button>
+                        <div style={{ display: "flex", gap: "8px" }}>
+                          <button
+                            className="btn btn-primary"
+                            style={{ padding: "6px 12px", fontSize: "14px" }}
+                            onClick={() => {
+                              setSelectedItem(item)
+                              setShowModal(true)
+                            }}
+                          >
+                            Adjust Stock
+                          </button>
+                          <button
+                            className="btn btn-danger"
+                            style={{ padding: "6px 12px", fontSize: "14px" }}
+                            onClick={() => deleteInventoryItem(item.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )

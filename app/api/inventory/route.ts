@@ -86,6 +86,38 @@ export async function PATCH(req: Request) {
   }
 }
 
+// DELETE /api/inventory?id=123
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url)
+    const id = searchParams.get('id')
+    
+    if (!id) {
+      return NextResponse.json({ error: 'id is required' }, { status: 400 })
+    }
+
+    // Check if inventory item exists
+    const existingItem = await query<any>(
+      `SELECT id FROM inventory WHERE id = ?`,
+      [id]
+    )
+
+    if (!existingItem || existingItem.length === 0) {
+      return NextResponse.json({ error: 'Inventory item not found' }, { status: 404 })
+    }
+
+    // Delete related records first (inventory_movements)
+    await query(`DELETE FROM inventory_movements WHERE ingredient_id = (SELECT ingredient_id FROM inventory WHERE id = ?)`, [id])
+    
+    // Delete the inventory item
+    await query(`DELETE FROM inventory WHERE id = ?`, [id])
+    
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message || 'Failed to delete inventory item' }, { status: 500 })
+  }
+}
+
 
 
 
