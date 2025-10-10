@@ -13,9 +13,17 @@ services:
     restart: always
 
   app:
+    env_file:
+      - .env
     environment:
       - NODE_ENV=production
       - MYSQL_URL=${MYSQL_URL}
+      - DB_HOST=${DB_HOST}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - DB_PORT=${DB_PORT}
+      - MYSQL_SSL=true
     # Remove port exposure if using reverse proxy
     # ports: []
     restart: always
