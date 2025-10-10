@@ -26,107 +26,6 @@ interface InventoryItem {
   contentUnit?: string
 }
 
-// Sample inventory data for different branches
-const inventoryData: Record<string, InventoryItem[]> = {
-  exxa: [
-    {
-      id: 1,
-      ingredientId: 1,
-      ingredient: "Chicken",
-      unit: "kg",
-      qtyInStock: 1.2,
-      unitCost: 200,
-      reorderLevel: 5,
-      lastUpdated: "2024-01-15",
-      dateAdded: "2023-12-01",
-      supplier: "Metro Poultry",
-    },
-    {
-      id: 2,
-      ingredientId: 2,
-      ingredient: "Soy Sauce",
-      unit: "L",
-      qtyInStock: 10,
-      unitCost: 60,
-      reorderLevel: 3,
-      lastUpdated: "2024-01-14",
-      dateAdded: "2023-11-15",
-      supplier: "Silver Swan",
-    },
-    {
-      id: 3,
-      ingredientId: 3,
-      ingredient: "Vinegar",
-      unit: "L",
-      qtyInStock: 8,
-      unitCost: 40,
-      reorderLevel: 2,
-      lastUpdated: "2024-01-14",
-      dateAdded: "2023-11-20",
-      supplier: "Datu Puti",
-    },
-    {
-      id: 4,
-      ingredientId: 4,
-      ingredient: "Garlic",
-      unit: "kg",
-      qtyInStock: 0.5,
-      unitCost: 120,
-      reorderLevel: 1,
-      lastUpdated: "2024-01-13",
-      dateAdded: "2024-01-05",
-      supplier: "Local Market",
-    },
-    {
-      id: 5,
-      ingredientId: 5,
-      ingredient: "Bay Leaf",
-      unit: "kg",
-      qtyInStock: 0.3,
-      unitCost: 800,
-      reorderLevel: 0.5,
-      lastUpdated: "2024-01-10",
-      dateAdded: "2023-10-10",
-      supplier: "Spice World",
-    },
-    {
-      id: 6,
-      ingredientId: 6,
-      ingredient: "Oil",
-      unit: "L",
-      qtyInStock: 5,
-      unitCost: 100,
-      reorderLevel: 2,
-      lastUpdated: "2024-01-14",
-      dateAdded: "2023-12-15",
-      supplier: "Minola",
-    },
-    {
-      id: 7,
-      ingredientId: 7,
-      ingredient: "Pork",
-      unit: "kg",
-      qtyInStock: 8,
-      unitCost: 250,
-      reorderLevel: 5,
-      lastUpdated: "2024-01-15",
-      dateAdded: "2024-01-10",
-      supplier: "Prime Meat",
-    },
-    {
-      id: 8,
-      ingredientId: 8,
-      ingredient: "Tamarind Mix",
-      unit: "kg",
-      qtyInStock: 2,
-      unitCost: 150,
-      reorderLevel: 1,
-      lastUpdated: "2024-01-12",
-      dateAdded: "2023-11-05",
-      supplier: "Sinigang Corp",
-    },
-  ],
-}
 
 interface NewInventoryItem {
   ingredient: string
@@ -192,9 +91,9 @@ export default function InventoryPage() {
             ingredientId: r.ingredient_id,
             ingredient: r.ingredient,
             unit: r.unit || 'pcs',
-            qtyInStock: Number(r.quantity || 0),
-            unitCost: Number(r.unitCost || 0),
-            reorderLevel: Number(r.min_threshold || 0),
+            qtyInStock: typeof r.quantity === 'number' ? r.quantity : Number(r.quantity),
+            unitCost: typeof r.unitCost === 'number' ? r.unitCost : Number(r.unitCost),
+            reorderLevel: typeof r.min_threshold === 'number' ? r.min_threshold : Number(r.min_threshold),
             lastUpdated: r.updated_at || r.created_at || new Date().toISOString().split('T')[0],
             dateAdded: r.created_at || new Date().toISOString().split('T')[0],
           }))
@@ -205,28 +104,16 @@ export default function InventoryPage() {
   }, [router])
 
   const handleStockAdjustment = async () => {
-    if (!selectedItem) return
-
-    const newQty =
-      adjustmentType === "add"
-        ? selectedItem.qtyInStock + adjustmentQty
-        : Math.max(0, selectedItem.qtyInStock - adjustmentQty)
-
-    const updatedInventory = inventory.map((item) =>
-      item.id === selectedItem.id
-        ? {
-          ...item,
-          qtyInStock: newQty,
-          lastUpdated: new Date().toISOString().split("T")[0],
-        }
-        : item,
-    )
-
+    if (!selectedItem) return;
+    const branchNameToId: any = { exxa: 1, tera: 2, cnx: 3, all: 99 };
+    const branchId = branchNameToId[user!.branch] || 1;
+    const delta = adjustmentType === 'add' ? adjustmentQty : -adjustmentQty;
+    if (!selectedItem.ingredientId || !branchId || !delta) {
+      alert('Error: Missing or invalid ingredient, branch, or quantity.');
+      return;
+    }
     try {
-      const branchNameToId: any = { exxa: 1, tera: 2, cnx: 3, all: 99 }
-      const branchId = branchNameToId[user!.branch] || 1
-      const delta = adjustmentType === 'add' ? adjustmentQty : -adjustmentQty
-      await fetch('/api/inventory', {
+      const patchRes = await fetch('/api/inventory', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -237,15 +124,36 @@ export default function InventoryPage() {
           notes: adjustmentReason,
           user_id: (user as any)?.id || null,
         }),
-      })
+      });
+      if (!patchRes.ok) {
+        const err = await patchRes.json();
+        alert('Failed to adjust stock: ' + (err?.error || patchRes.status));
+        return;
+      }
+      // Reload inventory from backend to persist changes
+      const rows = await fetch(`/api/inventory?branch_id=${branchId}`).then(r=>r.json());
+      if (Array.isArray(rows)) {
+        const mapped = rows.map((r: any) => ({
+          id: r.id,
+          ingredientId: r.ingredient_id,
+          ingredient: r.ingredient,
+          unit: r.unit || 'pcs',
+          qtyInStock: typeof r.quantity === 'number' ? r.quantity : Number(r.quantity),
+          unitCost: typeof r.unitCost === 'number' ? r.unitCost : Number(r.unitCost),
+          reorderLevel: typeof r.min_threshold === 'number' ? r.min_threshold : Number(r.min_threshold),
+          lastUpdated: r.updated_at || r.created_at || new Date().toISOString().split('T')[0],
+          dateAdded: r.created_at || new Date().toISOString().split('T')[0],
+        }));
+        setInventory(mapped);
+      }
     } catch (e) {
-      console.error(e)
+      console.error(e);
+      alert('Failed to adjust stock: ' + (e as any)?.message);
     } finally {
-      setInventory(updatedInventory)
-      setShowModal(false)
-      setSelectedItem(null)
-      setAdjustmentQty(0)
-      setAdjustmentReason("")
+      setShowModal(false);
+      setSelectedItem(null);
+      setAdjustmentQty(0);
+      setAdjustmentReason("");
     }
   }
 
@@ -669,11 +577,15 @@ export default function InventoryPage() {
                 <div className="form-group">
                   <label className="form-label">Quantity</label>
                   <input
-                    type="number"
-                    step="0.1"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     className="form-input"
-                    value={adjustmentQty}
-                    onChange={(e) => setAdjustmentQty(Number.parseFloat(e.target.value) || 0)}
+                    value={adjustmentQty === 0 ? "" : String(adjustmentQty)}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/^0+(?!$)/, "");
+                      setAdjustmentQty(val === "" ? 0 : Number.parseFloat(val));
+                    }}
                     placeholder={`Enter quantity in ${selectedItem.unit}`}
                   />
                 </div>

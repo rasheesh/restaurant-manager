@@ -495,13 +495,15 @@ export default function CreditPage() {
                 <div className="form-group">
                   <label className="form-label">Payment Amount (₱)</label>
                   <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    max={selectedTransaction.remainingBalance}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     className="form-input"
-                    value={paymentAmount}
-                    onChange={(e) => setPaymentAmount(Number.parseFloat(e.target.value) || 0)}
+                    value={paymentAmount === 0 ? "" : String(paymentAmount)}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/^0+(?!$)/, "");
+                      setPaymentAmount(val === "" ? 0 : Number.parseFloat(val));
+                    }}
                     placeholder="Enter payment amount"
                   />
                   <small style={{ color: "#6c757d", fontSize: "12px", display: "block", marginTop: "4px" }}>

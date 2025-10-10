@@ -392,10 +392,53 @@ export default function POSPage() {
   }
 
   const updateQuantity = (index: number, quantity: number) => {
+    const item = cart[index];
+    // Find the dish in the dishes list to get current servingsAvailable
+    const dish = dishes.find((d) => d.id === item.dish.id);
+    // For combos, skip limit (handled by combo logic)
+    if (item.isCombo) {
+      if (quantity <= 0) {
+        removeFromCart(index);
+      } else {
+        setCart(cart.map((ci, i) => (i === index ? { ...ci, quantity } : ci)));
+      }
+      return;
+    }
+
+    // Calculate max allowed quantity based on servingsAvailable
+    let maxQty = 0;
+    if (dish) {
+      // For half size, each quantity uses 0.5 serving
+      if (item.size === 'half') {
+        maxQty = Math.floor(dish.servingsAvailable / 0.5);
+      } else {
+        maxQty = dish.servingsAvailable;
+      }
+    }
+
+    // Also account for other cart items of the same dish/size
+    const otherCartQty = cart.reduce((sum, ci, i) => {
+      if (i !== index && ci.dish.id === item.dish.id && ci.size === item.size && !ci.isCombo) {
+        return sum + ci.quantity;
+      }
+      return sum;
+    }, 0);
+
+    // The max quantity for this cart item is maxQty - otherCartQty
+    const allowedQty = Math.max(0, maxQty - otherCartQty);
+
     if (quantity <= 0) {
-      removeFromCart(index)
+      removeFromCart(index);
+    } else if (quantity > allowedQty) {
+      // Prevent exceeding inventory
+      toast({
+        title: 'Inventory limit reached',
+        description: `Cannot order more than available servings for ${item.dish.name}.`,
+        duration: 3000,
+      });
+      setCart(cart.map((ci, i) => (i === index ? { ...ci, quantity: allowedQty } : ci)));
     } else {
-      setCart(cart.map((item, i) => (i === index ? { ...item, quantity } : item)))
+      setCart(cart.map((ci, i) => (i === index ? { ...ci, quantity } : ci)));
     }
   }
 
@@ -529,6 +572,29 @@ export default function POSPage() {
       })
       const data = await res.json()
       if (res.ok && data?.order_number) {
+        // Subtract ingredients from inventory for each dish in the order
+        for (const item of expandedItems) {
+          // Fetch recipe for this item
+          const recipeRes = await fetch(`/api/recipes?item_id=${item.item_id}`)
+          const recipe = await recipeRes.json()
+          if (Array.isArray(recipe)) {
+            for (const ing of recipe) {
+              // Subtract ingredient stock
+              await fetch('/api/inventory', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  ingredient_id: ing.ingredient_id,
+                  branch_id: branchId,
+                  delta: -1 * (item.quantity * ing.quantity),
+                  reason: 'sale',
+                  notes: `Order #${data.order_number} - ${item.name_snapshot}`,
+                  user_id: (user as any)?.id || null,
+                })
+              })
+            }
+          }
+        }
         // Build receipt from server order_number/id to avoid duplicates
         const serverOrderNumber = data.order_number
         const salesTransaction = {
@@ -1362,11 +1428,15 @@ export default function POSPage() {
                   <div className="form-group">
                     <label className="form-label">Amount Received (₱)</label>
                     <input
-                      type="number"
-                      step="0.01"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       className="form-input"
-                      value={amountReceived}
-                      onChange={(e) => setAmountReceived(Number.parseFloat(e.target.value) || 0)}
+                      value={amountReceived === 0 ? "" : String(amountReceived)}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/^0+(?!$)/, "");
+                        setAmountReceived(val === "" ? 0 : Number.parseFloat(val));
+                      }}
                       placeholder="Enter amount received"
                     />
                     {amountReceived > 0 && (

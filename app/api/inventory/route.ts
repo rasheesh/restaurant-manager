@@ -45,28 +45,40 @@ export async function POST(req: Request) {
 
 // PATCH /api/inventory  { item_id, branch_id, delta, reason, notes, user_id }
 export async function PATCH(req: Request) {
+  console.log('PATCH function called')
   const { ingredient_id, branch_id, delta, reason = 'adjustment', notes = null, user_id = null } = await req.json()
+  console.log('PATCH request received:', { ingredient_id, branch_id, delta, reason, notes, user_id })
+  
   if (!ingredient_id || !branch_id || !delta) {
     return NextResponse.json({ error: 'ingredient_id, branch_id, delta are required' }, { status: 400 })
   }
+  
   const conn = await getConnection()
   try {
+    console.log('Starting transaction...')
     await conn.beginTransaction()
 
+    console.log('Updating inventory...')
     await conn.query(
       `UPDATE inventory SET quantity = GREATEST(quantity + ?, 0), updated_at = UTC_TIMESTAMP() WHERE ingredient_id = ? AND branch_id = ?`,
       [delta, ingredient_id, branch_id]
     )
 
+    console.log('Inserting into inventory_movements...')
     await conn.query(
-      `INSERT INTO inventory_movements (ingredient_id, branch_id, quantity_change, reason, order_id, reference, notes, created_by, created_at)
-       VALUES (?, ?, ?, ?, NULL, NULL, ?, ?, UTC_TIMESTAMP())`,
-      [ingredient_id, branch_id, delta, reason, notes, user_id]
+      `INSERT INTO inventory_movements (item_id, ingredient_id, branch_id, quantity_change, reason, order_id, notes, movement_type, quantity, created_by)
+       VALUES (1, ?, ?, ?, ?, NULL, ?, ?, ?, ?)`,
+      [ingredient_id, branch_id, delta, reason, notes, 'adjustment', delta, user_id]
     )
 
+    console.log('Committing transaction...')
     await conn.commit()
+    console.log('Transaction committed successfully')
     return NextResponse.json({ success: true })
   } catch (error: any) {
+    console.error('Stock adjustment error:', error)
+    console.error('Error stack:', error?.stack)
+    console.error('Error details:', JSON.stringify(error))
     try { await conn.rollback() } catch {}
     return NextResponse.json({ error: error?.message || 'Failed to adjust stock' }, { status: 500 })
   } finally {

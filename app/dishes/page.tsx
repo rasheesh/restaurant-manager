@@ -90,165 +90,39 @@ const convertUnits = (fromAmount: number, fromUnit: string, toUnit: string): num
   return fromAmount
 }
 
-const inventoryItems = [
-  { name: "Chicken Breast", unit: "kg", costPerUnit: 200, stock: 15.5 },
-  { name: "Pork", unit: "kg", costPerUnit: 200, stock: 12.3 },
-  { name: "Ground Pork", unit: "kg", costPerUnit: 120, stock: 8.7 },
-  { name: "Soy Sauce", unit: "L", costPerUnit: 60, stock: 5.2 },
-  { name: "Vinegar", unit: "L", costPerUnit: 40, stock: 3.8 },
-  { name: "Garlic", unit: "kg", costPerUnit: 120, stock: 2.1 },
-  { name: "Bay Leaf", unit: "kg", costPerUnit: 800, stock: 0.5 },
-  { name: "Oil", unit: "L", costPerUnit: 100, stock: 4.5 },
-  { name: "Tamarind Mix", unit: "kg", costPerUnit: 500, stock: 1.2 },
-  { name: "Tomato", unit: "kg", costPerUnit: 60, stock: 8.3 },
-  { name: "Onion", unit: "kg", costPerUnit: 80, stock: 6.7 },
-  { name: "Kangkong", unit: "kg", costPerUnit: 50, stock: 3.2 },
-  { name: "Radish", unit: "kg", costPerUnit: 65, stock: 4.1 },
-  { name: "Spring Roll Wrapper", unit: "pcs", costPerUnit: 0.5, stock: 200 },
-  { name: "Carrot", unit: "kg", costPerUnit: 50, stock: 5.5 },
-  { name: "Mixed Beans", unit: "kg", costPerUnit: 160, stock: 2.8 },
-  { name: "Ube Ice Cream", unit: "kg", costPerUnit: 300, stock: 1.5 },
-  { name: "Leche Flan", unit: "kg", costPerUnit: 400, stock: 1.2 },
-  { name: "Shaved Ice", unit: "kg", costPerUnit: 10, stock: 50 },
-  { name: "Evaporated Milk", unit: "L", costPerUnit: 100, stock: 3.5 },
-  { name: "Sugar", unit: "kg", costPerUnit: 150, stock: 10.2 },
-]
-
-const sampleDishes: Dish[] = [
-  {
-    id: 1,
-    name: "Chicken Adobo",
-    servings: 4,
-    pricePerServing: 30,
-    cost: 58,
-    totalSellingPrice: 120,
-    profit: 62,
-    profitPerServing: 15.5, // (120 - 58) / 4
-    category: "Main Course",
-    status: "available",
-    ingredients: [
-      { name: "Chicken Breast", quantity: 0.25, unit: "kg", cost: 50 },
-      { name: "Soy Sauce", quantity: 0.02, unit: "L", cost: 1.2 },
-      { name: "Vinegar", quantity: 0.015, unit: "L", cost: 0.6 },
-      { name: "Garlic", quantity: 0.01, unit: "kg", cost: 1.2 },
-      { name: "Bay Leaf", quantity: 0.005, unit: "kg", cost: 4 },
-      { name: "Oil", quantity: 0.01, unit: "L", cost: 1 },
-    ],
-  },
-  {
-    id: 2,
-    name: "Chicken Adobo Large",
-    servings: 6,
-    pricePerServing: 28,
-    cost: 87,
-    totalSellingPrice: 168,
-    profit: 81,
-    profitPerServing: 13.5, // (168 - 87) / 6
-    category: "Main Course",
-    status: "available",
-    ingredients: [
-      { name: "Chicken Breast", quantity: 0.375, unit: "kg", cost: 75 },
-      { name: "Soy Sauce", quantity: 0.03, unit: "L", cost: 1.8 },
-      { name: "Vinegar", quantity: 0.0225, unit: "L", cost: 0.9 },
-      { name: "Garlic", quantity: 0.015, unit: "kg", cost: 1.8 },
-      { name: "Bay Leaf", quantity: 0.0075, unit: "kg", cost: 6 },
-      { name: "Oil", quantity: 0.015, unit: "L", cost: 1.5 },
-    ],
-  },
-  {
-    id: 3,
-    name: "Pork Sinigang",
-    servings: 5,
-    pricePerServing: 26,
-    cost: 65,
-    totalSellingPrice: 130,
-    profit: 65,
-    profitPerServing: 13, // (130 - 65) / 5
-    category: "Main Course",
-    status: "available",
-    ingredients: [
-      { name: "Pork", quantity: 0.2, unit: "kg", cost: 40 },
-      { name: "Tamarind Mix", quantity: 0.03, unit: "kg", cost: 15 },
-      { name: "Tomato", quantity: 0.05, unit: "kg", cost: 3 },
-      { name: "Onion", quantity: 0.03, unit: "kg", cost: 2 },
-      { name: "Kangkong", quantity: 0.05, unit: "kg", cost: 2.5 },
-      { name: "Radish", quantity: 0.04, unit: "kg", cost: 2.5 },
-    ],
-  },
-  {
-    id: 4,
-    name: "Lumpiang Shanghai",
-    servings: 10,
-    pricePerServing: 5,
-    cost: 20,
-    totalSellingPrice: 50,
-    profit: 30,
-    profitPerServing: 3, // (50 - 20) / 10
-    category: "Appetizer",
-    status: "available",
-    ingredients: [
-      { name: "Ground Pork", quantity: 0.1, unit: "kg", cost: 12 },
-      { name: "Spring Roll Wrapper", quantity: 10, unit: "pcs", cost: 5 },
-      { name: "Carrot", quantity: 0.02, unit: "kg", cost: 1 },
-      { name: "Onion", quantity: 0.01, unit: "kg", cost: 0.5 },
-      { name: "Oil", quantity: 0.02, unit: "L", cost: 1.5 },
-    ],
-  },
-  {
-    id: 5,
-    name: "Halo-Halo",
-    servings: 1,
-    pricePerServing: 95,
-    cost: 45,
-    totalSellingPrice: 95,
-    profit: 50,
-    profitPerServing: 50, // (95 - 45) / 1
-    category: "Dessert",
-    status: "available",
-    ingredients: [
-      { name: "Mixed Beans", quantity: 0.05, unit: "kg", cost: 8 },
-      { name: "Ube Ice Cream", quantity: 0.05, unit: "kg", cost: 15 },
-      { name: "Leche Flan", quantity: 0.03, unit: "kg", cost: 12 },
-      { name: "Shaved Ice", quantity: 0.2, unit: "kg", cost: 2 },
-      { name: "Evaporated Milk", quantity: 0.05, unit: "L", cost: 5 },
-      { name: "Sugar", quantity: 0.02, unit: "kg", cost: 3 },
-    ],
-  },
-  {
-    id: 6,
-    name: "Fresh Buko Juice",
-    servings: 1,
-    pricePerServing: 45,
-    cost: 15,
-    totalSellingPrice: 45,
-    profit: 30,
-    profitPerServing: 30, // (45 - 15) / 1
-    category: "Drinks",
-    status: "available",
-    ingredients: [{ name: "Sugar", quantity: 0.01, unit: "kg", cost: 1.5 }],
-  },
-  {
-    id: 7,
-    name: "Iced Tea",
-    servings: 1,
-    pricePerServing: 25,
-    cost: 8,
-    totalSellingPrice: 25,
-    profit: 17,
-    profitPerServing: 17, // (25 - 8) / 1
-    category: "Drinks",
-    status: "available",
-    ingredients: [{ name: "Sugar", quantity: 0.005, unit: "kg", cost: 0.75 }],
-  },
-]
-
 export default function DishesPage() {
+  const [inventoryItems, setInventoryItems] = useState<Array<{ name: string; unit: string; costPerUnit: number; stock: number }>>([]);
   const [user, setUser] = useState<User | null>(null)
   const [dishes, setDishes] = useState<Dish[]>([])
   const [selectedDish, setSelectedDish] = useState<Dish | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
+  // ...existing code...
+
+  useEffect(() => {
+    fetch('/api/inventory')
+      .then(r => r.json())
+      .then((rows) => {
+        if (Array.isArray(rows)) {
+          // Map inventory items to ingredient names, units, cost, and stock
+          setInventoryItems(
+            rows
+              .filter((item: any) => {
+                // Only show items with quantity > 0 and valid ingredient name
+                return (Number(item.quantity ?? item.stock ?? 0) > 0) && (item.ingredient || item.name)
+              })
+              .map((item: any) => ({
+                name: item.ingredient || item.name,
+                unit: item.unit || (item.default_unit ?? "kg"),
+                costPerUnit: Number(item.unitCost ?? item.cost_per_unit ?? 0),
+                stock: Number(item.quantity ?? item.stock ?? 0),
+              }))
+          );
+        }
+      })
+      .catch(() => {});
+  }, []);
   const [selectedCategory, setSelectedCategory] = useState<string>("All")
   const [searchQuery, setSearchQuery] = useState<string>("")
   const [categories, setCategories] = useState<Array<{ id: number; name: string }>>([])
@@ -893,12 +767,16 @@ export default function DishesPage() {
                   <div className="form-group">
                     <label className="form-label">Number of Servings</label>
                     <input
-                      type="number"
-                      min="1"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       className="form-input"
                       style={{ width: "100%", padding: "12px", fontSize: "14px" }}
-                      value={newDish.servings}
-                      onChange={(e) => handleNewDishPriceChange("servings", Number.parseInt(e.target.value) || 1)}
+                      value={newDish.servings === 0 ? "" : String(newDish.servings)}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/^0+(?!$)/, "");
+                        handleNewDishPriceChange("servings", val === "" ? 0 : Number.parseInt(val));
+                      }}
                       placeholder="e.g., 4"
                     />
                   </div>
@@ -1016,12 +894,9 @@ export default function DishesPage() {
                       </thead>
                       <tbody>
                         {newDish.ingredients.map((ingredient, index) => {
-                          const inventoryItem = inventoryItems.find((item) => item.name === ingredient.name)
-                          const showConversion =
-                            inventoryItem && ingredient.unit !== inventoryItem.unit && ingredient.quantity > 0
-                          const convertedQty = showConversion
-                            ? convertUnits(ingredient.quantity, ingredient.unit, inventoryItem.unit)
-                            : 0
+                          const inventoryItem = inventoryItems.find((item) => item.name === ingredient.name);
+                          const showConversion = inventoryItem && ingredient.unit !== inventoryItem.unit && ingredient.quantity > 0;
+                          const convertedQty = showConversion ? convertUnits(ingredient.quantity, ingredient.unit, inventoryItem.unit) : 0;
 
                           return (
                             <tr key={index}>
@@ -1085,21 +960,21 @@ export default function DishesPage() {
                                   className="btn btn-danger"
                                   style={{ padding: "6px 10px", fontSize: "12px", width: "100%" }}
                                   onClick={() => {
-                                    const updatedIngredients = newDish.ingredients.filter((_, i) => i !== index)
-                                    const totalCost = updatedIngredients.reduce((sum, ing) => sum + ing.cost, 0)
+                                    const updatedIngredients = newDish.ingredients.filter((_, i) => i !== index);
+                                    const totalCost = updatedIngredients.reduce((sum, ing) => sum + ing.cost, 0);
                                     setNewDish({
                                       ...newDish,
                                       ingredients: updatedIngredients,
                                       cost: totalCost,
                                       profit: newDish.totalSellingPrice - totalCost,
-                                    })
+                                    });
                                   }}
                                 >
                                   Remove
                                 </button>
                               </td>
                             </tr>
-                          )
+                          );
                         })}
                       </tbody>
                       <tfoot>
@@ -1427,6 +1302,7 @@ export default function DishesPage() {
           )}
         </main>
       </div>
+
     </AuthGuard>
-  )
+  );
 }
