@@ -1,3 +1,17 @@
+// DELETE /api/users
+export async function DELETE(req: Request) {
+  try {
+    const { id } = await req.json()
+    if (!id) {
+      return NextResponse.json({ error: "User ID required" }, { status: 400 })
+    }
+    await query("DELETE FROM users WHERE id=?", [id])
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error("DELETE /api/users error:", err)
+    return NextResponse.json({ error: "Failed to delete user" }, { status: 500 })
+  }
+}
 // POST /api/users/reset-password-request
 export async function POST_resetPasswordRequest(req: Request) {
   try {

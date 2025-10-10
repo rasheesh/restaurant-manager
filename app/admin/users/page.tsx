@@ -295,6 +295,27 @@ export default function UserManagement() {
                           Edit
                         </button>
                         <button
+                          className="btn btn-sm btn-danger"
+                          style={{ marginRight: "8px" }}
+                          onClick={async () => {
+                            if (!window.confirm(`Are you sure you want to delete ${user.name}?`)) return;
+                            try {
+                              const res = await fetch('/api/users', {
+                                method: 'DELETE',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ id: user.id })
+                              })
+                              const data = await res.json()
+                              if (!res.ok) return alert(data.error || 'Failed to delete user')
+                              fetchUsers()
+                            } catch (err) {
+                              alert('Network error')
+                            }
+                          }}
+                        >
+                          Delete
+                        </button>
+                        <button
                           className={`btn btn-sm ${user.status === "active" ? "btn-danger" : "btn-success"}`}
                           onClick={() => toggleUserStatus(user.id)}
                           style={{ marginRight: user.hasPendingReset ? "8px" : "0" }}
