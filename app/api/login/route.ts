@@ -7,7 +7,7 @@ const roleMap: Record<number, string> = { 1: "admin", 2: "manager", 3: "cashier"
 const branchMap: Record<number, string> = { 1: "exxa", 2: "tera", 3: "cnx", 99: "all" }
 
 export async function POST(req: Request) {
-  const { email, password } = await req.json()
+  const { email, password, branch } = await req.json()
 
   try {
     const rows: any[] = await query("SELECT * FROM users WHERE email = ?", [email])
@@ -21,6 +21,11 @@ export async function POST(req: Request) {
 
     if (!match) {
       return NextResponse.json({ error: "Invalid password" }, { status: 401 })
+    }
+
+    // Branch restriction: only allow login if branch matches, except for supervisors (role_id=2) and admins (role_id=1)
+    if (user.role_id !== 2 && user.role_id !== 1 && branchMap[user.branch_id] !== branch) {
+      return NextResponse.json({ error: "You are not allowed to log in to this branch." }, { status: 403 })
     }
 
     // ✅ store UTC time as last_login

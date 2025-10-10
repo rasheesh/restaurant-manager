@@ -10,43 +10,60 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [branch, setBranch] = useState("")
   const [loading, setLoading] = useState(false)
+  const [resetRequested, setResetRequested] = useState(false)
+  const [resetError, setResetError] = useState("")
   const router = useRouter()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-
     try {
       const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, branch })
       })
-
       const data = await res.json()
-
       if (!res.ok) {
         alert(data.error || "Login failed")
         setLoading(false)
         return
       }
-
-      // Save session (localStorage for now, but can use JWT/NextAuth later)
       localStorage.setItem("user", JSON.stringify(data.user))
-
-      // Redirect
-      // Redirect
       if (data.user.role === "cashier") {
         router.push("/pos")
       } else {
         router.push("/dashboard")
       }
-
     } catch (error) {
       console.error(error)
       alert("Something went wrong")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleForgotPassword = async () => {
+    setResetRequested(false)
+    setResetError("")
+    if (!email.trim()) {
+      setResetError("Please enter your email address above first.")
+      return
+    }
+    try {
+      const res = await fetch("/api/users/reset-password-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setResetError(data.error || "Failed to request password reset.")
+      } else {
+        setResetRequested(true)
+      }
+    } catch (err) {
+      setResetError("Network error. Please try again.")
     }
   }
 
@@ -57,7 +74,7 @@ export default function LoginPage() {
         <h1 className="login-title">Food Business POS</h1>
         <p style={{ textAlign: "center", marginBottom: "30px", color: "#6c757d" }}>Filipino Food Business Management</p>
 
-        <form onSubmit={handleLogin}>
+  <form onSubmit={handleLogin}>
           <div className="form-group">
             <label className="form-label" htmlFor="email">
               Email Address
@@ -109,6 +126,25 @@ export default function LoginPage() {
           <button type="submit" className="btn btn-primary w-full" disabled={loading} style={{ marginTop: "20px" }}>
             {loading ? "Signing In..." : "Sign In"}
           </button>
+          <button
+            type="button"
+            className="btn btn-link w-full"
+            style={{ marginTop: "10px", color: "#2d5a27", textDecoration: "underline" }}
+            onClick={handleForgotPassword}
+            disabled={loading}
+          >
+            Forgot Password?
+          </button>
+          {resetRequested && (
+            <div style={{ color: "#28a745", marginTop: "10px", fontSize: "14px" }}>
+              Password reset request sent! Please wait for approval.
+            </div>
+          )}
+          {resetError && (
+            <div style={{ color: "#dc3545", marginTop: "10px", fontSize: "14px" }}>
+              {resetError}
+            </div>
+          )}
         </form>
 
         <div

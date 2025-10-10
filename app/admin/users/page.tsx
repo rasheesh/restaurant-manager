@@ -12,6 +12,7 @@ interface User {
   status: string
   lastLogin: string
   name?: string
+  hasPendingReset?: boolean
 }
 
 export default function UserManagement() {
@@ -73,6 +74,7 @@ export default function UserManagement() {
             branch: branchMap[u.branch_id] || "exxa",
             status: u.status_id === 1 ? "active" : "inactive",
             lastLogin: lastLoginFormatted,
+            hasPendingReset: !!u.has_pending_reset,
           }
         })
       )
@@ -271,7 +273,7 @@ export default function UserManagement() {
                 </thead>
                 <tbody>
                   {users.map((user) => (
-                    <tr key={user.id}>
+                    <tr key={user.id} style={user.hasPendingReset ? { background: '#fff3cd' } : {}}>
                       <td style={{ fontWeight: "600" }}>{user.name || "N/A"}</td>
                       <td>{user.email}</td>
                       <td>
@@ -295,9 +297,34 @@ export default function UserManagement() {
                         <button
                           className={`btn btn-sm ${user.status === "active" ? "btn-danger" : "btn-success"}`}
                           onClick={() => toggleUserStatus(user.id)}
+                          style={{ marginRight: user.hasPendingReset ? "8px" : "0" }}
                         >
                           {user.status === "active" ? "Deactivate" : "Activate"}
                         </button>
+                        {user.hasPendingReset && (
+                          <button
+                            className="btn btn-sm btn-warning"
+                            style={{ marginRight: "0" }}
+                            onClick={async () => {
+                              // Call backend to reset password and clear flag
+                              try {
+                                const res = await fetch(`/api/users/reset-password`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ id: user.id })
+                                })
+                                const data = await res.json()
+                                if (!res.ok) return alert(data.error || 'Failed to reset password')
+                                alert('Password reset to "password".')
+                                fetchUsers()
+                              } catch (err) {
+                                alert('Network error')
+                              }
+                            }}
+                          >
+                            Reset
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
