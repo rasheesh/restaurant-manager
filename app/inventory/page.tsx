@@ -54,6 +54,9 @@ export default function InventoryPage() {
   const [selectedAuditPeriod, setSelectedAuditPeriod] = useState<string>("")
   const [auditResults, setAuditResults] = useState<any[]>([])
   const [auditMismatches, setAuditMismatches] = useState<any[]>([])
+  const [activeAuditTab, setActiveAuditTab] = useState<"periodic" | "daily">("periodic")
+  const [dailyAuditResults, setDailyAuditResults] = useState<any[]>([])
+  const [editingActualQty, setEditingActualQty] = useState<number | null>(null)
 
   const [newItem, setNewItem] = useState<NewInventoryItem>({
     ingredient: "",
@@ -348,6 +351,110 @@ export default function InventoryPage() {
     } catch (error) {
       console.error('Audit failed:', error)
       alert('Failed to run inventory audit. Please try again.')
+    }
+  }
+
+  const calculateExpectedQuantity = (item: InventoryItem) => {
+    // Expected quantity should be the current stock level
+    // The actual quantity is what you physically count during the audit
+    // Variance = Actual - Expected (where Expected = Current Stock)
+    
+    // For a proper audit, expected should match the system's recorded quantity
+    // unless there are known transactions that haven't been recorded yet
+    return item.qtyInStock
+  }
+
+  const runDailyAudit = async () => {
+    try {
+      const auditData = inventory.map(item => {
+        const expectedQty = calculateExpectedQuantity(item)
+        // Start with expected as actual, but allow editing
+        const actualQty = expectedQty
+        
+        const variance = actualQty - expectedQty
+        const variancePercent = expectedQty > 0 ? (variance / expectedQty) * 100 : 0
+        const financialImpact = variance * item.unitCost
+        
+        // Determine status based on variance
+        let status = "OK"
+        if (Math.abs(variancePercent) > 5) {
+          status = "HIGH_VARIANCE"
+        } else if (Math.abs(variancePercent) > 2) {
+          status = "MEDIUM_VARIANCE"
+        } else if (Math.abs(variancePercent) > 0.5) {
+          status = "LOW_VARIANCE"
+        }
+
+        return {
+          id: item.id,
+          ingredient: item.ingredient,
+          expectedQty: Math.round(expectedQty * 100) / 100,
+          actualQty: Math.round(actualQty * 100) / 100,
+          variance: Math.round(variance * 100) / 100,
+          variancePercent: Math.round(variancePercent * 100) / 100,
+          unit: item.unit,
+          unitCost: item.unitCost,
+          financialImpact: Math.round(financialImpact * 100) / 100,
+          status,
+          lastUpdated: item.lastUpdated,
+          dateAdded: item.dateAdded
+        }
+      })
+
+      setDailyAuditResults(auditData)
+      alert(`✅ Daily Audit Complete: ${auditData.length} items audited. Click on actual quantities to edit them.`)
+    } catch (error) {
+      console.error('Daily audit failed:', error)
+      alert('Failed to run daily audit. Please try again.')
+    }
+  }
+
+  const updateActualQuantity = (itemId: number, newActualQty: number) => {
+    setDailyAuditResults(prev => prev.map(item => {
+      if (item.id === itemId) {
+        const variance = newActualQty - item.expectedQty
+        const variancePercent = item.expectedQty > 0 ? (variance / item.expectedQty) * 100 : 0
+        const financialImpact = variance * item.unitCost
+        
+        // Determine status based on variance
+        let status = "OK"
+        if (Math.abs(variancePercent) > 5) {
+          status = "HIGH_VARIANCE"
+        } else if (Math.abs(variancePercent) > 2) {
+          status = "MEDIUM_VARIANCE"
+        } else if (Math.abs(variancePercent) > 0.5) {
+          status = "LOW_VARIANCE"
+        }
+
+        return {
+          ...item,
+          actualQty: Math.round(newActualQty * 100) / 100,
+          variance: Math.round(variance * 100) / 100,
+          variancePercent: Math.round(variancePercent * 100) / 100,
+          financialImpact: Math.round(financialImpact * 100) / 100,
+          status
+        }
+      }
+      return item
+    }))
+    setEditingActualQty(null)
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "HIGH_VARIANCE": return "#dc3545"
+      case "MEDIUM_VARIANCE": return "#ffc107"
+      case "LOW_VARIANCE": return "#17a2b8"
+      default: return "#28a745"
+    }
+  }
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "HIGH_VARIANCE": return "HIGH VARIANCE"
+      case "MEDIUM_VARIANCE": return "MEDIUM VARIANCE"
+      case "LOW_VARIANCE": return "LOW VARIANCE"
+      default: return "OK"
     }
   }
 
@@ -944,64 +1051,144 @@ export default function InventoryPage() {
                   </button>
                 </div>
 
+                {/* Audit Tabs */}
                 <div style={{ marginBottom: "20px" }}>
-                  <h3 style={{ margin: "0 0 15px 0", color: "#2d5a27" }}>Select Audit Period</h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "10px", marginBottom: "20px" }}>
+                  <div style={{ display: "flex", borderBottom: "2px solid #e9ecef", marginBottom: "20px" }}>
                     <button
-                      className={`btn ${selectedAuditPeriod === "weekly" ? "btn-primary" : "btn-secondary"}`}
-                      onClick={() => setSelectedAuditPeriod("weekly")}
-                      style={{ padding: "12px", fontSize: "14px" }}
-                    >
-                      📅 Weekly Audit
-                    </button>
-                    <button
-                      className={`btn ${selectedAuditPeriod === "monthly" ? "btn-primary" : "btn-secondary"}`}
-                      onClick={() => setSelectedAuditPeriod("monthly")}
-                      style={{ padding: "12px", fontSize: "14px" }}
-                    >
-                      📆 Monthly Audit
-                    </button>
-                    <button
-                      className={`btn ${selectedAuditPeriod === "quarterly" ? "btn-primary" : "btn-secondary"}`}
-                      onClick={() => setSelectedAuditPeriod("quarterly")}
-                      style={{ padding: "12px", fontSize: "14px" }}
-                    >
-                      📊 Quarterly Audit
-                    </button>
-                    <button
-                      className={`btn ${selectedAuditPeriod === "yearly" ? "btn-primary" : "btn-secondary"}`}
-                      onClick={() => setSelectedAuditPeriod("yearly")}
-                      style={{ padding: "12px", fontSize: "14px" }}
-                    >
-                      📈 Yearly Audit
-                    </button>
-                  </div>
-
-                  <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
-                    <button
-                      className="btn btn-primary"
-                      onClick={() => selectedAuditPeriod && runInventoryAudit(selectedAuditPeriod)}
-                      disabled={!selectedAuditPeriod}
-                      style={{ padding: "10px 20px" }}
-                    >
-                      🔍 Run Audit
-                    </button>
-                    <button
-                      className="btn btn-secondary"
-                      onClick={() => {
-                        setAuditResults([])
-                        setAuditMismatches([])
-                        setSelectedAuditPeriod("")
+                      className={`btn ${activeAuditTab === "periodic" ? "btn-primary" : "btn-secondary"}`}
+                      onClick={() => setActiveAuditTab("periodic")}
+                      style={{
+                        border: "none",
+                        borderBottom: activeAuditTab === "periodic" ? "2px solid #2d5a27" : "2px solid transparent",
+                        borderRadius: "0",
+                        padding: "10px 20px",
+                        marginRight: "10px",
+                        background: activeAuditTab === "periodic" ? "#2d5a27" : "transparent",
+                        color: activeAuditTab === "periodic" ? "white" : "#6c757d"
                       }}
-                      style={{ padding: "10px 20px" }}
                     >
-                      Clear Results
+                      📅 Periodic Audit
+                    </button>
+                    <button
+                      className={`btn ${activeAuditTab === "daily" ? "btn-primary" : "btn-secondary"}`}
+                      onClick={() => setActiveAuditTab("daily")}
+                      style={{
+                        border: "none",
+                        borderBottom: activeAuditTab === "daily" ? "2px solid #2d5a27" : "2px solid transparent",
+                        borderRadius: "0",
+                        padding: "10px 20px",
+                        background: activeAuditTab === "daily" ? "#2d5a27" : "transparent",
+                        color: activeAuditTab === "daily" ? "white" : "#6c757d"
+                      }}
+                    >
+                      📊 Daily Audit
                     </button>
                   </div>
                 </div>
 
-                {/* Audit Results */}
-                {auditResults.length > 0 && (
+                {/* Periodic Audit Tab */}
+                {activeAuditTab === "periodic" && (
+                  <div style={{ marginBottom: "20px" }}>
+                    <h3 style={{ margin: "0 0 15px 0", color: "#2d5a27" }}>Select Audit Period</h3>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "10px", marginBottom: "20px" }}>
+                      <button
+                        className={`btn ${selectedAuditPeriod === "weekly" ? "btn-primary" : "btn-secondary"}`}
+                        onClick={() => setSelectedAuditPeriod("weekly")}
+                        style={{ padding: "12px", fontSize: "14px" }}
+                      >
+                        📅 Weekly Audit
+                      </button>
+                      <button
+                        className={`btn ${selectedAuditPeriod === "monthly" ? "btn-primary" : "btn-secondary"}`}
+                        onClick={() => setSelectedAuditPeriod("monthly")}
+                        style={{ padding: "12px", fontSize: "14px" }}
+                      >
+                        📆 Monthly Audit
+                      </button>
+                      <button
+                        className={`btn ${selectedAuditPeriod === "quarterly" ? "btn-primary" : "btn-secondary"}`}
+                        onClick={() => setSelectedAuditPeriod("quarterly")}
+                        style={{ padding: "12px", fontSize: "14px" }}
+                      >
+                        📊 Quarterly Audit
+                      </button>
+                      <button
+                        className={`btn ${selectedAuditPeriod === "yearly" ? "btn-primary" : "btn-secondary"}`}
+                        onClick={() => setSelectedAuditPeriod("yearly")}
+                        style={{ padding: "12px", fontSize: "14px" }}
+                      >
+                        📈 Yearly Audit
+                      </button>
+                    </div>
+
+                    <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
+                      <button
+                        className="btn btn-primary"
+                        onClick={() => selectedAuditPeriod && runInventoryAudit(selectedAuditPeriod)}
+                        disabled={!selectedAuditPeriod}
+                        style={{ padding: "10px 20px" }}
+                      >
+                        🔍 Run Audit
+                      </button>
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() => {
+                          setAuditResults([])
+                          setAuditMismatches([])
+                          setSelectedAuditPeriod("")
+                        }}
+                        style={{ padding: "10px 20px" }}
+                      >
+                        Clear Results
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Daily Audit Tab */}
+                {activeAuditTab === "daily" && (
+                  <div style={{ marginBottom: "20px" }}>
+                    <h3 style={{ margin: "0 0 15px 0", color: "#2d5a27" }}>Daily Inventory Audit</h3>
+                    <div style={{ 
+                      background: "#e7f3ff", 
+                      border: "1px solid #b3d9ff", 
+                      borderRadius: "6px", 
+                      padding: "15px", 
+                      marginBottom: "20px" 
+                    }}>
+                      <h4 style={{ margin: "0 0 10px 0", color: "#0066cc" }}>📋 Daily Audit Instructions</h4>
+                      <ul style={{ margin: 0, paddingLeft: "20px", fontSize: "14px", color: "#0066cc" }}>
+                        <li><strong>Expected Quantity:</strong> Current stock level recorded in the system</li>
+                        <li><strong>Actual Quantity:</strong> Physical count - click to edit with your actual count</li>
+                        <li><strong>Variance:</strong> Difference between actual count and system record (Actual - Expected)</li>
+                        <li><strong>Status:</strong> Updates based on variance percentage (OK, Low, Medium, High)</li>
+                      </ul>
+                    </div>
+
+                    <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
+                      <button
+                        className="btn btn-primary"
+                        onClick={runDailyAudit}
+                        style={{ padding: "10px 20px" }}
+                      >
+                        🔍 Run Daily Audit
+                      </button>
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() => {
+                          setDailyAuditResults([])
+                          setEditingActualQty(null)
+                        }}
+                        style={{ padding: "10px 20px" }}
+                      >
+                        Clear Results
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Periodic Audit Results */}
+                {activeAuditTab === "periodic" && auditResults.length > 0 && (
                   <div>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
                       <h3 style={{ margin: 0, color: "#2d5a27" }}>Audit Results</h3>
@@ -1125,6 +1312,163 @@ export default function InventoryPage() {
                         </div>
                         <div>
                           <strong>Total Financial Impact:</strong> ₱{auditResults.reduce((sum, item) => sum + item.financialImpact, 0).toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Daily Audit Results */}
+                {activeAuditTab === "daily" && dailyAuditResults.length > 0 && (
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
+                      <h3 style={{ margin: 0, color: "#2d5a27" }}>Daily Audit Results</h3>
+                      <div style={{ display: "flex", gap: "15px", fontSize: "14px" }}>
+                        <span style={{ color: "#0066cc", fontWeight: "600" }}>
+                          📊 Total Items: {dailyAuditResults.length}
+                        </span>
+                        <span style={{ color: "#6c757d" }}>
+                          💰 Total Impact: ₱{dailyAuditResults.reduce((sum, item) => sum + item.financialImpact, 0).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Daily Audit Results Table */}
+                    <div style={{ overflowX: "auto" }}>
+                      <table className="table" style={{ fontSize: "14px" }}>
+                        <thead>
+                          <tr>
+                            <th>Ingredient</th>
+                            <th>Expected Qty</th>
+                            <th>Actual Qty</th>
+                            <th>Variance</th>
+                            <th>Variance %</th>
+                            <th>Financial Impact</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {dailyAuditResults.map((result) => (
+                            <tr key={result.id} style={{ 
+                              background: result.status !== "OK" ? "#fff3cd" : "transparent" 
+                            }}>
+                              <td style={{ fontWeight: "600" }}>{result.ingredient}</td>
+                              <td>{result.expectedQty} {result.unit}</td>
+                              <td>
+                                {editingActualQty === result.id ? (
+                                  <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      defaultValue={result.actualQty}
+                                      style={{
+                                        width: "80px",
+                                        padding: "4px 8px",
+                                        border: "1px solid #2d5a27",
+                                        borderRadius: "4px",
+                                        fontSize: "14px"
+                                      }}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                          const newValue = parseFloat((e.target as HTMLInputElement).value)
+                                          if (!isNaN(newValue)) {
+                                            updateActualQuantity(result.id, newValue)
+                                          }
+                                        } else if (e.key === "Escape") {
+                                          setEditingActualQty(null)
+                                        }
+                                      }}
+                                      onBlur={(e) => {
+                                        const newValue = parseFloat(e.target.value)
+                                        if (!isNaN(newValue)) {
+                                          updateActualQuantity(result.id, newValue)
+                                        } else {
+                                          setEditingActualQty(null)
+                                        }
+                                      }}
+                                      autoFocus
+                                    />
+                                    <span style={{ fontSize: "12px", color: "#6c757d" }}>{result.unit}</span>
+                                  </div>
+                                ) : (
+                                  <span
+                                    style={{
+                                      cursor: "pointer",
+                                      padding: "4px 8px",
+                                      borderRadius: "4px",
+                                      background: "#f8f9fa",
+                                      border: "1px solid #e9ecef",
+                                      display: "inline-block",
+                                      minWidth: "60px",
+                                      textAlign: "center"
+                                    }}
+                                    onClick={() => setEditingActualQty(result.id)}
+                                    title="Click to edit"
+                                  >
+                                    {result.actualQty} {result.unit}
+                                  </span>
+                                )}
+                              </td>
+                              <td style={{ 
+                                color: result.variance !== 0 ? (result.variance > 0 ? "#28a745" : "#dc3545") : "inherit",
+                                fontWeight: result.variance !== 0 ? "600" : "normal"
+                              }}>
+                                {result.variance > 0 ? "+" : ""}{result.variance.toFixed(2)} {result.unit}
+                              </td>
+                              <td style={{ 
+                                color: result.variancePercent !== 0 ? (result.variancePercent > 0 ? "#28a745" : "#dc3545") : "inherit",
+                                fontWeight: result.variancePercent !== 0 ? "600" : "normal"
+                              }}>
+                                {result.variancePercent > 0 ? "+" : ""}{result.variancePercent.toFixed(1)}%
+                              </td>
+                              <td style={{ 
+                                color: result.financialImpact !== 0 ? (result.financialImpact > 0 ? "#28a745" : "#dc3545") : "inherit",
+                                fontWeight: result.financialImpact !== 0 ? "600" : "normal"
+                              }}>
+                                {result.financialImpact > 0 ? "+" : ""}₱{result.financialImpact.toFixed(2)}
+                              </td>
+                              <td>
+                                <span
+                                  style={{
+                                    padding: "4px 8px",
+                                    borderRadius: "4px",
+                                    fontSize: "12px",
+                                    fontWeight: "600",
+                                    background: getStatusColor(result.status),
+                                    color: "white",
+                                  }}
+                                >
+                                  {getStatusText(result.status)}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Daily Audit Summary */}
+                    <div style={{ 
+                      marginTop: "20px", 
+                      padding: "15px", 
+                      background: "#f8f9fa", 
+                      borderRadius: "6px",
+                      border: "1px solid #e9ecef"
+                    }}>
+                      <h4 style={{ margin: "0 0 10px 0", color: "#2d5a27" }}>Daily Audit Summary</h4>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "15px", fontSize: "14px" }}>
+                        <div>
+                          <strong>Total Items Audited:</strong> {dailyAuditResults.length}
+                        </div>
+                        <div>
+                          <strong>Items with Variance:</strong> {dailyAuditResults.filter(item => item.variance !== 0).length}
+                        </div>
+                        <div>
+                          <strong>Total Financial Impact:</strong> ₱{dailyAuditResults.reduce((sum, item) => sum + item.financialImpact, 0).toFixed(2)}
+                        </div>
+                        <div>
+                          <strong>Average Variance:</strong> {(dailyAuditResults.reduce((sum, item) => sum + Math.abs(item.variancePercent), 0) / dailyAuditResults.length).toFixed(1)}%
                         </div>
                       </div>
                     </div>

@@ -216,13 +216,21 @@ export default function DishesPage() {
   const addIngredientToNewDish = () => {
     setNewDish({
       ...newDish,
-      ingredients: [...newDish.ingredients, { name: "", quantity: 0, unit: "kg", cost: 0 }],
+      ingredients: [...newDish.ingredients, { name: "", quantity: 0, unit: "", cost: 0 }],
     })
   }
 
   const handleNewDishIngredientChange = (index: number, field: string, value: string | number) => {
     const updatedIngredients = [...newDish.ingredients]
     updatedIngredients[index] = { ...updatedIngredients[index], [field]: value }
+
+    // Auto-set unit when ingredient name is selected
+    if (field === "name" && value) {
+      const selectedInventoryItem = inventoryItems.find(item => item.name === value)
+      if (selectedInventoryItem) {
+        updatedIngredients[index].unit = selectedInventoryItem.unit
+      }
+    }
 
     if (field === "name" || field === "quantity" || field === "unit") {
       const ingredient = updatedIngredients[index]
@@ -1035,6 +1043,7 @@ export default function DishesPage() {
                                   value={ingredient.unit}
                                   onChange={(e) => handleNewDishIngredientChange(index, "unit", e.target.value)}
                                 >
+                                  <option value="">Select unit...</option>
                                   {measurementUnits.map((unit) => (
                                     <option key={unit} value={unit}>
                                       {unit}
