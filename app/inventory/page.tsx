@@ -300,41 +300,43 @@ export default function InventoryPage() {
     const { startDate, endDate } = getAuditPeriodDates(period)
     
     try {
-      // Create deterministic audit data based on item characteristics
+      // Create audit data using actual inventory quantities (same as daily audit)
       const auditData = inventory.map(item => {
-        // Use a hash of the item ID to create consistent but varied results
-        const hash = (item.id * 17 + item.ingredientId * 13) % 100
-        const variancePercent = hash / 100 * 8 - 4 // -4% to +4% variance
         const expectedQty = item.qtyInStock
-        const actualQty = expectedQty * (1 + variancePercent / 100)
-        const variance = Math.abs(actualQty - expectedQty)
+        const actualQty = expectedQty // Start with expected as actual, but allow editing
         
-        // Some items are more likely to have mismatches based on their characteristics
+        const variance = actualQty - expectedQty
+        const variancePercent = expectedQty > 0 ? (variance / expectedQty) * 100 : 0
+        const financialImpact = variance * item.unitCost
+        
+        // Determine status based on variance (same logic as daily audit)
+        let status = "OK"
         let isMismatch = false
-        if (item.qtyInStock < item.reorderLevel) {
-          // Low stock items are more likely to have discrepancies
-          isMismatch = variance > (expectedQty * 0.015) // 1.5% threshold
-        } else if (item.ingredient.toLowerCase().includes('chicken') || item.ingredient.toLowerCase().includes('pork')) {
-          // Perishable items might have more variance
-          isMismatch = variance > (expectedQty * 0.025) // 2.5% threshold
-        } else {
-          // Standard threshold
-          isMismatch = variance > (expectedQty * 0.02) // 2% threshold
+        if (Math.abs(variancePercent) > 5) {
+          status = "HIGH_VARIANCE"
+          isMismatch = true
+        } else if (Math.abs(variancePercent) > 2) {
+          status = "MEDIUM_VARIANCE"
+          isMismatch = true
+        } else if (Math.abs(variancePercent) > 0.5) {
+          status = "LOW_VARIANCE"
+          isMismatch = true
         }
 
         return {
           id: item.id,
           ingredient: item.ingredient,
-          expectedQty,
+          expectedQty: Math.round(expectedQty * 100) / 100,
           actualQty: Math.round(actualQty * 100) / 100,
           variance: Math.round(variance * 100) / 100,
-          variancePercent: Math.round((variance / expectedQty) * 100 * 100) / 100,
+          variancePercent: Math.round(variancePercent * 100) / 100,
           unit: item.unit,
           isMismatch,
+          status,
           lastUpdated: item.lastUpdated,
           dateAdded: item.dateAdded,
           unitCost: item.unitCost,
-          financialImpact: Math.round(variance * item.unitCost * 100) / 100
+          financialImpact: Math.round(financialImpact * 100) / 100
         }
       })
 
@@ -410,6 +412,7 @@ export default function InventoryPage() {
   }
 
   const updateActualQuantity = (itemId: number, newActualQty: number) => {
+    // Update daily audit results
     setDailyAuditResults(prev => prev.map(item => {
       if (item.id === itemId) {
         const variance = newActualQty - item.expectedQty
@@ -418,12 +421,16 @@ export default function InventoryPage() {
         
         // Determine status based on variance
         let status = "OK"
+        let isMismatch = false
         if (Math.abs(variancePercent) > 5) {
           status = "HIGH_VARIANCE"
+          isMismatch = true
         } else if (Math.abs(variancePercent) > 2) {
           status = "MEDIUM_VARIANCE"
+          isMismatch = true
         } else if (Math.abs(variancePercent) > 0.5) {
           status = "LOW_VARIANCE"
+          isMismatch = true
         }
 
         return {
@@ -432,11 +439,67 @@ export default function InventoryPage() {
           variance: Math.round(variance * 100) / 100,
           variancePercent: Math.round(variancePercent * 100) / 100,
           financialImpact: Math.round(financialImpact * 100) / 100,
-          status
+          status,
+          isMismatch
         }
       }
       return item
     }))
+
+    // Update periodic audit results
+    setAuditResults(prev => prev.map(item => {
+      if (item.id === itemId) {
+        const variance = newActualQty - item.expectedQty
+        const variancePercent = item.expectedQty > 0 ? (variance / item.expectedQty) * 100 : 0
+        const financialImpact = variance * item.unitCost
+        
+        // Determine status based on variance
+        let status = "OK"
+        let isMismatch = false
+        if (Math.abs(variancePercent) > 5) {
+          status = "HIGH_VARIANCE"
+          isMismatch = true
+        } else if (Math.abs(variancePercent) > 2) {
+          status = "MEDIUM_VARIANCE"
+          isMismatch = true
+        } else if (Math.abs(variancePercent) > 0.5) {
+          status = "LOW_VARIANCE"
+          isMismatch = true
+        }
+
+        return {
+          ...item,
+          actualQty: Math.round(newActualQty * 100) / 100,
+          variance: Math.round(variance * 100) / 100,
+          variancePercent: Math.round(variancePercent * 100) / 100,
+          financialImpact: Math.round(financialImpact * 100) / 100,
+          status,
+          isMismatch
+        }
+      }
+      return item
+    }))
+
+    // Update mismatches for periodic audit
+    setAuditMismatches(prev => {
+      const updatedResults = auditResults.map(item => {
+        if (item.id === itemId) {
+          const variance = newActualQty - item.expectedQty
+          const variancePercent = item.expectedQty > 0 ? (variance / item.expectedQty) * 100 : 0
+          return {
+            ...item,
+            actualQty: Math.round(newActualQty * 100) / 100,
+            variance: Math.round(variance * 100) / 100,
+            variancePercent: Math.round(variancePercent * 100) / 100,
+            financialImpact: Math.round(variance * item.unitCost * 100) / 100,
+            isMismatch: Math.abs(variancePercent) > 0.5
+          }
+        }
+        return item
+      })
+      return updatedResults.filter(item => item.isMismatch)
+    })
+
     setEditingActualQty(null)
   }
 
@@ -1230,7 +1293,6 @@ export default function InventoryPage() {
                             <th>Variance</th>
                             <th>Variance %</th>
                             <th>Financial Impact</th>
-                            <th>Date Added</th>
                             <th>Status</th>
                           </tr>
                         </thead>
@@ -1241,35 +1303,79 @@ export default function InventoryPage() {
                             }}>
                               <td style={{ fontWeight: "600" }}>{result.ingredient}</td>
                               <td>{result.expectedQty} {result.unit}</td>
-                              <td style={{ 
-                                color: result.isMismatch ? "#856404" : "inherit",
-                                fontWeight: result.isMismatch ? "600" : "normal"
-                              }}>
-                                {result.actualQty} {result.unit}
+                              <td>
+                                {editingActualQty === result.id ? (
+                                  <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      defaultValue={result.actualQty}
+                                      style={{
+                                        width: "80px",
+                                        padding: "4px 8px",
+                                        border: "1px solid #2d5a27",
+                                        borderRadius: "4px",
+                                        fontSize: "14px"
+                                      }}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                          const newValue = parseFloat((e.target as HTMLInputElement).value)
+                                          if (!isNaN(newValue)) {
+                                            updateActualQuantity(result.id, newValue)
+                                          }
+                                        } else if (e.key === "Escape") {
+                                          setEditingActualQty(null)
+                                        }
+                                      }}
+                                      onBlur={(e) => {
+                                        const newValue = parseFloat(e.target.value)
+                                        if (!isNaN(newValue)) {
+                                          updateActualQuantity(result.id, newValue)
+                                        } else {
+                                          setEditingActualQty(null)
+                                        }
+                                      }}
+                                      autoFocus
+                                    />
+                                    <span style={{ fontSize: "12px", color: "#6c757d" }}>{result.unit}</span>
+                                  </div>
+                                ) : (
+                                  <span
+                                    style={{
+                                      cursor: "pointer",
+                                      padding: "4px 8px",
+                                      borderRadius: "4px",
+                                      background: "#f8f9fa",
+                                      border: "1px solid #e9ecef",
+                                      display: "inline-block",
+                                      minWidth: "60px",
+                                      textAlign: "center"
+                                    }}
+                                    onClick={() => setEditingActualQty(result.id)}
+                                    title="Click to edit"
+                                  >
+                                    {result.actualQty} {result.unit}
+                                  </span>
+                                )}
                               </td>
                               <td style={{ 
-                                color: result.isMismatch ? "#856404" : "inherit",
-                                fontWeight: result.isMismatch ? "600" : "normal"
+                                color: result.variance !== 0 ? (result.variance > 0 ? "#28a745" : "#dc3545") : "inherit",
+                                fontWeight: result.variance !== 0 ? "600" : "normal"
                               }}>
-                                {result.variance.toFixed(2)} {result.unit}
+                                {result.variance > 0 ? "+" : ""}{result.variance.toFixed(2)} {result.unit}
                               </td>
                               <td style={{ 
-                                color: result.isMismatch ? "#856404" : "inherit",
-                                fontWeight: result.isMismatch ? "600" : "normal"
+                                color: result.variancePercent !== 0 ? (result.variancePercent > 0 ? "#28a745" : "#dc3545") : "inherit",
+                                fontWeight: result.variancePercent !== 0 ? "600" : "normal"
                               }}>
-                                {result.variancePercent.toFixed(1)}%
+                                {result.variancePercent > 0 ? "+" : ""}{result.variancePercent.toFixed(1)}%
                               </td>
                               <td style={{ 
-                                color: result.isMismatch ? "#856404" : "inherit",
-                                fontWeight: result.isMismatch ? "600" : "normal"
+                                color: result.financialImpact !== 0 ? (result.financialImpact > 0 ? "#28a745" : "#dc3545") : "inherit",
+                                fontWeight: result.financialImpact !== 0 ? "600" : "normal"
                               }}>
-                                ₱{result.financialImpact.toFixed(2)}
-                              </td>
-                              <td style={{ 
-                                color: "#6c757d",
-                                fontSize: "13px"
-                              }}>
-                                {result.dateAdded}
+                                {result.financialImpact > 0 ? "+" : ""}₱{result.financialImpact.toFixed(2)}
                               </td>
                               <td>
                                 <span
@@ -1278,11 +1384,11 @@ export default function InventoryPage() {
                                     borderRadius: "4px",
                                     fontSize: "12px",
                                     fontWeight: "600",
-                                    background: result.isMismatch ? "#ffc107" : "#28a745",
+                                    background: getStatusColor(result.status || "OK"),
                                     color: "white",
                                   }}
                                 >
-                                  {result.isMismatch ? "MISMATCH" : "OK"}
+                                  {getStatusText(result.status || "OK")}
                                 </span>
                               </td>
                             </tr>
