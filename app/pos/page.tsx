@@ -1311,18 +1311,35 @@ export default function POSPage() {
                 {paymentMethod === "cash" && (
                   <div className="form-group">
                     <label className="form-label">Amount Received (₱)</label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      className="form-input"
-                      value={amountReceived === 0 ? "" : String(amountReceived)}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/^0+(?!$)/, "");
-                        setAmountReceived(val === "" ? 0 : Number.parseFloat(val));
-                      }}
-                      placeholder="Enter amount received"
-                    />
+                    <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        className="form-input"
+                        value={amountReceived === 0 ? "" : String(amountReceived)}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/^0+(?!$)/, "");
+                          setAmountReceived(val === "" ? 0 : Number.parseFloat(val));
+                        }}
+                        placeholder="Enter amount received"
+                        style={{ flex: 1 }}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{ 
+                          padding: "10px 15px", 
+                          fontSize: "14px",
+                          whiteSpace: "nowrap",
+                          minWidth: "120px"
+                        }}
+                        onClick={() => setAmountReceived(total)}
+                        title={`Set amount received to exact total: ₱${total.toFixed(2)}`}
+                      >
+                        Exact Payment
+                      </button>
+                    </div>
                     {amountReceived > 0 && (
                       <p style={{ margin: "5px 0 0 0", color: amountReceived >= total ? "#28a745" : "#dc3545" }}>
                         Change: ₱{Math.max(0, amountReceived - total).toFixed(2)}

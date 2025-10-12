@@ -1225,6 +1225,7 @@ export default function InventoryPage() {
                         <li><strong>Actual Quantity:</strong> Physical count - click to edit with your actual count</li>
                         <li><strong>Variance:</strong> Difference between actual count and system record (Actual - Expected)</li>
                         <li><strong>Status:</strong> Updates based on variance percentage (OK, Low, Medium, High)</li>
+                        <li><strong>⚠️ Note:</strong> Only supervisors and admins can edit actual quantities</li>
                       </ul>
                     </div>
 
@@ -1343,17 +1344,22 @@ export default function InventoryPage() {
                                 ) : (
                                   <span
                                     style={{
-                                      cursor: "pointer",
+                                      cursor: (user?.role === "admin" || user?.role === "supervisor") ? "pointer" : "not-allowed",
                                       padding: "4px 8px",
                                       borderRadius: "4px",
-                                      background: "#f8f9fa",
+                                      background: (user?.role === "admin" || user?.role === "supervisor") ? "#f8f9fa" : "#e9ecef",
                                       border: "1px solid #e9ecef",
                                       display: "inline-block",
                                       minWidth: "60px",
-                                      textAlign: "center"
+                                      textAlign: "center",
+                                      opacity: (user?.role === "admin" || user?.role === "supervisor") ? 1 : 0.6
                                     }}
-                                    onClick={() => setEditingActualQty(result.id)}
-                                    title="Click to edit"
+                                    onClick={() => {
+                                      if (user?.role === "admin" || user?.role === "supervisor") {
+                                        setEditingActualQty(result.id)
+                                      }
+                                    }}
+                                    title={(user?.role === "admin" || user?.role === "supervisor") ? "Click to edit" : "Only supervisors and admins can edit actual quantities"}
                                   >
                                     {result.actualQty} {result.unit}
                                   </span>
@@ -1500,17 +1506,22 @@ export default function InventoryPage() {
                                 ) : (
                                   <span
                                     style={{
-                                      cursor: "pointer",
+                                      cursor: (user?.role === "admin" || user?.role === "supervisor") ? "pointer" : "not-allowed",
                                       padding: "4px 8px",
                                       borderRadius: "4px",
-                                      background: "#f8f9fa",
+                                      background: (user?.role === "admin" || user?.role === "supervisor") ? "#f8f9fa" : "#e9ecef",
                                       border: "1px solid #e9ecef",
                                       display: "inline-block",
                                       minWidth: "60px",
-                                      textAlign: "center"
+                                      textAlign: "center",
+                                      opacity: (user?.role === "admin" || user?.role === "supervisor") ? 1 : 0.6
                                     }}
-                                    onClick={() => setEditingActualQty(result.id)}
-                                    title="Click to edit"
+                                    onClick={() => {
+                                      if (user?.role === "admin" || user?.role === "supervisor") {
+                                        setEditingActualQty(result.id)
+                                      }
+                                    }}
+                                    title={(user?.role === "admin" || user?.role === "supervisor") ? "Click to edit" : "Only supervisors and admins can edit actual quantities"}
                                   >
                                     {result.actualQty} {result.unit}
                                   </span>
