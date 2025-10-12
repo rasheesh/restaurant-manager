@@ -1,0 +1,242 @@
+/* base sidebar - white background, dark text */
+.sidebar {
+  width: 240px;
+  min-width: 240px;
+  transition: width 250ms ease, min-width 250ms ease;
+  overflow: hidden;
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  background: #ffffff !important;
+  color: #222222 !important;
+  z-index: 1000;
+  box-shadow: 2px 0 6px rgba(0,0,0,0.06);
+  display: flex;
+  flex-direction: column;
+}
+
+/* compact (icons-only) */
+.sidebar.collapsed {
+  width: 60px;
+  min-width: 60px;
+}
+
+/* when hovered while collapsed, expand back */
+.sidebar.collapsed.hovered {
+  width: 240px;
+  min-width: 240px;
+}
+
+/* nav item layout */
+.nav-list .nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  color: rgba(0,0,0,0.85);
+  transition: background 160ms ease;
+}
+.nav-list .nav-item .icon {
+  width: 28px;
+  text-align: center;
+}
+/* hide text when compact */
+.sidebar.collapsed .nav-list .nav-item .text,
+.sidebar.collapsed .logo,
+.sidebar.collapsed .user-name,
+.sidebar.collapsed .user-role,
+.sidebar.collapsed .btn-logout {
+  display: none;
+}
+
+/* show compact logout icon */
+.sidebar.collapsed .btn-logout {
+  display: block;
+}
+
+/* active styling */
+.nav-item.active {
+  background: rgba(0,0,0,0.04);
+  border-left: 3px solid rgba(0,0,0,0.08);
+}
+
+/* hamburger button (project-specific) */
+.hamburger-btn,
+.fp-hamburger {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 3000;
+  background: #ffffff;
+  color: #222222;
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
+/* ===== fp-prefixed explicit overrides to avoid collisions ===== */
+.fp-sidebar {
+  width: 240px !important;
+  min-width: 240px !important;
+  transition: width 250ms ease, transform 250ms ease !important;
+  overflow: hidden !important;
+  position: fixed !important;
+  left: 0 !important;
+  top: 0 !important;
+  height: 100vh !important;
+  background: #ffffff !important;
+  color: #222222 !important;
+  z-index: 1000 !important;
+  box-shadow: 2px 0 6px rgba(0,0,0,0.06) !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* compact icons-only */
+.fp-sidebar.collapsed {
+  width: 60px !important;
+  min-width: 60px !important;
+}
+
+/* temporarily expand on hover */
+.fp-sidebar.collapsed.hovered {
+  width: 240px !important;
+  min-width: 240px !important;
+}
+
+/* mobile overlay class when sidebar should slide in */
+.fp-sidebar.show-mobile {
+  transform: translateX(0) !important;
+}
+
+/* ensure icons/text hide/show correctly within fp-sidebar */
+.fp-sidebar.collapsed .nav-list .text,
+.fp-sidebar.collapsed .logo,
+.fp-sidebar.collapsed .user-name,
+.fp-sidebar.collapsed .user-role,
+.fp-sidebar.collapsed .btn-logout {
+  display: none !important;
+}
+
+/* primary link styling: background, color, spacing and smooth hover (dark text on white) */
+.sidebar .nav-menu .nav-item .nav-link,
+.fp-sidebar .nav-menu .nav-item .nav-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  color: #ffffff !important; /* changed to white */
+  text-decoration: none;
+  border-radius: 6px;
+  transition: background 200ms ease, color 200ms ease;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* hover uses subtle gray overlay */
+.sidebar .nav-menu .nav-item .nav-link:hover,
+.fp-sidebar .nav-menu .nav-item .nav-link:hover {
+  background: rgba(0,0,0,0.04);
+  color: #ffffff !important; /* keep white on hover */
+}
+
+/* active (selected) item styling */
+.sidebar .nav-menu .nav-item .nav-link.active,
+.fp-sidebar .nav-menu .nav-item .nav-link.active {
+  background: rgba(0,0,0,0.06);
+  color: #ffffff !important; /* keep white when active */
+  border-left: 3px solid rgba(0,0,0,0.08);
+  padding-left: 13px; /* adjust to accommodate border */
+}
+
+/* collapsed: center icons, hide overflowing text while keeping hover background consistent */
+.sidebar.collapsed .nav-menu .nav-item .nav-link,
+.fp-sidebar.collapsed .nav-menu .nav-item .nav-link {
+  justify-content: center;
+  padding: 10px 8px;
+  text-align: center;
+  overflow: hidden;
+}
+
+/* ensure icon area remains visible and dark */
+.sidebar .nav-menu .nav-item .nav-link::first-letter,
+.fp-sidebar .nav-menu .nav-item .nav-link::first-letter {
+  color: #222222;
+}
+
+/* header / brand text contrast */
+.sidebar > div:first-child h2,
+.fp-sidebar > div:first-child h2 {
+  color: #222222;
+  margin: 0;
+}
+
+/* user info area: keep subdued muted color (dark gray on white) */
+.sidebar .user-info,
+.fp-sidebar .user-info {
+  color: rgba(0,0,0,0.7);
+}
+
+/* maintain smooth width transition when toggling collapsed state */
+.sidebar,
+.fp-sidebar {
+  transition: width 260ms ease, min-width 260ms ease, transform 260ms ease;
+}
+
+/* layout variables for sidebar widths (used by main-content) */
+:root {
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 60px;
+}
+
+/* ensure main content transitions smoothly when sidebar toggles */
+.main-content {
+  /* changed: position main content relative to sidebar width so it expands when sidebar collapses */
+  margin-left: var(--sidebar-width);
+  width: calc(100% - var(--sidebar-width));
+  transition: margin-left 260ms ease, width 260ms ease;
+  box-sizing: border-box;
+}
+
+/* collapsed states adjust main content smoothly
+   Supports both:
+   - sibling selector: .sidebar.collapsed ~ .main-content (if .main-content is a sibling after the sidebar)
+   - global body class: body.sidebar-collapsed .main-content (recommended for route/tab consistency)
+*/
+.sidebar.collapsed ~ .main-content,
+.fp-sidebar.collapsed ~ .main-content,
+body.sidebar-collapsed .main-content,
+body.fp-sidebar-collapsed .main-content {
+  margin-left: var(--sidebar-collapsed-width);
+  width: calc(100% - var(--sidebar-collapsed-width));
+}
+
+/* mobile: when sidebar overlays content, keep main content full width */
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+
+  .sidebar.show-mobile ~ .main-content,
+  .fp-sidebar.show-mobile ~ .main-content,
+  body.sidebar-show-mobile .main-content,
+  body.fp-sidebar-show-mobile .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+
+  /* when not compact on mobile, show it (we'll toggle class from page logic) */
+  .sidebar.collapsed.hovered,
+  .sidebar.show-mobile {
+    transform: translateX(0);
+  }
+  /* make hamburger appear above content */
+  .hamburger-btn {
+    left: 12px;
+  }
+}

@@ -1,0 +1,37 @@
+/* ...existing code... */
+.sidebar {
+  width: 220px;
+  transition: width 0.3s;
+  /* ...existing code... */
+}
+.sidebar.collapsed {
+  width: 60px;
+}
+.hamburger {
+  display: none;
+  background: none;
+  border: none;
+  font-size: 2rem;
+  margin: 10px;
+  cursor: pointer;
+}
+@media (max-width: 768px) {
+  .sidebar {
+    position: absolute;
+    z-index: 1000;
+    height: 100vh;
+    left: 0;
+    top: 0;
+  }
+  .hamburger {
+    display: block;
+  }
+  .sidebar.collapsed {
+    width: 0;
+    overflow: hidden;
+  }
+  .app-container .expanded {
+    margin-left: 0;
+  }
+}
+/* ...existing code... */

@@ -42,6 +42,15 @@ export default function Dashboard() {
   const [summary, setSummary] = useState<any>({ subtotal: 0, discount: 0, tax: 0, total: 0, orders: 0 })
   const [topItems, setTopItems] = useState<any[]>([])
   const [lowStock, setLowStock] = useState<any[]>([])
+  // initialize from persisted value so page follows Sidebar's state
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("sidebarCollapsed") || "false")
+    } catch {
+      return false
+    }
+  })
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -125,6 +134,9 @@ export default function Dashboard() {
       .reduce((sum, transaction) => sum + transaction.remainingBalance, 0)
   }
 
+  // choose compact width (60) vs full width (240)
+  const sidebarWidth = sidebarCollapsed ? 60 : 240
+
   if (!user) {
     return <div>Loading...</div>
   }
@@ -136,11 +148,59 @@ export default function Dashboard() {
   return (
     <AuthGuard allowedRoles={["admin"]}>
       <div className="main-layout">
-        {/* Sidebar Navigation */}
-        <Sidebar user={user} currentPage="/dashboard" />
+        {/* visible hamburger (unique class) */}
+        <button
+          className="fp-hamburger"
+          aria-label="Toggle sidebar"
+          onClick={() => {
+            if (window.innerWidth <= 768) {
+              setMobileSidebarOpen((s) => !s)
+            } else {
+              setSidebarCollapsed((s) => !s)
+            }
+          }}
+          style={{
+            // inline to ensure visible regardless of other CSS
+            position: "fixed",
+            top: 14,
+            left: 14,
+            zIndex: 3001,
+            background: "#fff",
+            border: "none",
+            borderRadius: 6,
+            padding: "8px 10px",
+            cursor: "pointer",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.12)"
+          }}
+        >
+          ☰
+        </button>
+
+        {/* mobile overlay */}
+        {mobileSidebarOpen && (
+          <div
+            onClick={() => setMobileSidebarOpen(false)}
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 3000 }}
+          />
+        )}
+
+        <Sidebar
+          user={user}
+          currentPage="/dashboard"
+          collapsed={sidebarCollapsed}
+          mobileOpen={mobileSidebarOpen}
+        />
 
         {/* Main Content */}
-        <main className="main-content">
+        <main
+          className="main-content"
+          style={{
+            marginLeft: sidebarCollapsed ? 60 : 240,
+            transition: "margin-left 260ms ease",
+            minHeight: "100vh",
+            background: "#f8f9fa",
+          }}
+        >
           {/* Top Bar */}
           <div className="top-bar">
             <h1 style={{ margin: 0, fontSize: "1.8rem", color: "#2d5a27" }}>Dashboard</h1>
@@ -305,7 +365,7 @@ export default function Dashboard() {
           {/* Recent Activity */}
           <div className="card" style={{ marginTop: "20px" }}>
             <div className="card-header">
-              <h3 className="card-title">🕒 Recent Activity</h3>
+              <h3 className="card-title"> Recent Activities</h3>
             </div>
             <div>
               {recentActivities.length === 0 ? (
