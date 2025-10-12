@@ -70,6 +70,15 @@ export default function InventoryPage() {
   })
 
   const router = useRouter()
+  
+  // Sidebar state management
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("sidebarCollapsed") || "false")
+    } catch {
+      return false
+    }
+  })
 
   useEffect(() => {
     const userData = localStorage.getItem("user")
@@ -105,6 +114,13 @@ export default function InventoryPage() {
       })
       .catch(() => {})
   }, [router])
+
+  // Keep localStorage in sync with sidebar state
+  useEffect(() => {
+    try { 
+      localStorage.setItem("sidebarCollapsed", JSON.stringify(sidebarCollapsed)) 
+    } catch {}
+  }, [sidebarCollapsed])
 
   const handleStockAdjustment = async () => {
     if (!selectedItem) return;
@@ -533,7 +549,14 @@ export default function InventoryPage() {
       <div className="main-layout">
         <Sidebar user={user} currentPage="/inventory" />
 
-        <main className="main-content">
+        <main 
+          className="main-content"
+          style={{
+            marginLeft: sidebarCollapsed ? "calc(60px + 16px)" : "calc(240px + 16px)",
+            width: sidebarCollapsed ? "calc(100% - (60px + 16px))" : "calc(100% - (240px + 16px))",
+            transition: "margin-left 260ms ease, width 260ms ease",
+          }}
+        >
           <div className="top-bar">
             <h1 style={{ margin: 0, fontSize: "1.8rem", color: "#2d5a27" }}>
               Inventory Management - {branchName} Branches

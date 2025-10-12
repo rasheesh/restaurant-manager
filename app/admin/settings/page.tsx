@@ -7,6 +7,15 @@ import Sidebar from "../../../components/layout/sidebar"
 export default function SystemSettings() {
   const [mounted, setMounted] = useState(false)
   const [user, setUser] = useState(null)
+  
+  // Sidebar state management
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("sidebarCollapsed") || "false")
+    } catch {
+      return false
+    }
+  })
 
   useEffect(() => {
     setMounted(true)
@@ -15,6 +24,13 @@ export default function SystemSettings() {
       setUser(JSON.parse(userData))
     }
   }, [])
+
+  // Keep localStorage in sync with sidebar state
+  useEffect(() => {
+    try { 
+      localStorage.setItem("sidebarCollapsed", JSON.stringify(sidebarCollapsed)) 
+    } catch {}
+  }, [sidebarCollapsed])
 
   const [settings, setSettings] = useState({
     businessName: "Food Business POS",
@@ -73,7 +89,14 @@ export default function SystemSettings() {
       <div style={{ display: "flex", minHeight: "100vh" }}>
         <Sidebar user={user} currentPage="/admin/settings" />
 
-        <main className="main-content">
+        <main 
+          className="main-content"
+          style={{
+            marginLeft: sidebarCollapsed ? "calc(60px + 16px)" : "calc(240px + 16px)",
+            width: sidebarCollapsed ? "calc(100% - (60px + 16px))" : "calc(100% - (240px + 16px))",
+            transition: "margin-left 260ms ease, width 260ms ease",
+          }}
+        >
           <div className="page-header">
             <h1>⚙️ System Settings</h1>
             <p>Configure system-wide settings and preferences</p>

@@ -98,7 +98,15 @@ export default function DishesPage() {
   const [showModal, setShowModal] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
-  // ...existing code...
+  
+  // Sidebar state management
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("sidebarCollapsed") || "false")
+    } catch {
+      return false
+    }
+  })
 
   useEffect(() => {
     fetch('/api/inventory')
@@ -181,6 +189,13 @@ export default function DishesPage() {
       }
     })
   }, [router])
+
+  // Keep localStorage in sync with sidebar state
+  useEffect(() => {
+    try { 
+      localStorage.setItem("sidebarCollapsed", JSON.stringify(sidebarCollapsed)) 
+    } catch {}
+  }, [sidebarCollapsed])
 
   const calculateIngredientCost = (ingredientName: string, quantity: number, recipeUnit: string) => {
     const inventoryItem = inventoryItems.find((item) => item.name === ingredientName)
@@ -557,7 +572,14 @@ export default function DishesPage() {
       <div className="main-layout">
         <Sidebar user={user} currentPage="/dishes" />
 
-        <main className="main-content">
+        <main 
+          className="main-content"
+          style={{
+            marginLeft: sidebarCollapsed ? "calc(60px + 16px)" : "calc(240px + 16px)",
+            width: sidebarCollapsed ? "calc(100% - (60px + 16px))" : "calc(100% - (240px + 16px))",
+            transition: "margin-left 260ms ease, width 260ms ease",
+          }}
+        >
           <div className="top-bar">
             <h1 style={{ margin: 0, fontSize: "1.8rem", color: "#2d5a27" }}>Dishes & Recipes</h1>
             <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>

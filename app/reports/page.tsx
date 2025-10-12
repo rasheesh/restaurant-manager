@@ -118,6 +118,15 @@ export default function ReportsPage() {
   const [errorMsg, setErrorMsg] = useState<string>("")
   const [loadingReports, setLoadingReports] = useState(false)
   const [loadingOrders, setLoadingOrders] = useState(false)
+  
+  // Sidebar state management
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("sidebarCollapsed") || "false")
+    } catch {
+      return false
+    }
+  })
 
   useEffect(() => {
     const userData = localStorage.getItem("user")
@@ -135,6 +144,13 @@ export default function ReportsPage() {
     loadSoldOutData()
     refetchAll(parsedUser, selectedPeriod, dateRange)
   }, [router])
+
+  // Keep localStorage in sync with sidebar state
+  useEffect(() => {
+    try { 
+      localStorage.setItem("sidebarCollapsed", JSON.stringify(sidebarCollapsed)) 
+    } catch {}
+  }, [sidebarCollapsed])
 
   useEffect(() => {
     if (!user) return
@@ -404,7 +420,14 @@ export default function ReportsPage() {
       <div className="main-layout">
         <Sidebar user={user} currentPage="/reports" />
 
-        <main className="main-content">
+        <main 
+          className="main-content"
+          style={{
+            marginLeft: sidebarCollapsed ? "calc(60px + 16px)" : "calc(240px + 16px)",
+            width: sidebarCollapsed ? "calc(100% - (60px + 16px))" : "calc(100% - (240px + 16px))",
+            transition: "margin-left 260ms ease, width 260ms ease",
+          }}
+        >
           <div className="top-bar">
             <h1 style={{ margin: 0, fontSize: "1.8rem", color: "#2d5a27" }}>
               Reports {!isAdmin && `- ${user.branch.charAt(0).toUpperCase() + user.branch.slice(1)} Branch`}

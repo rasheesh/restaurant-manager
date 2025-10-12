@@ -134,8 +134,12 @@ export default function Dashboard() {
       .reduce((sum, transaction) => sum + transaction.remainingBalance, 0)
   }
 
-  // choose compact width (60) vs full width (240)
-  const sidebarWidth = sidebarCollapsed ? 60 : 240
+  // Keep localStorage in sync with sidebar state
+  useEffect(() => {
+    try { 
+      localStorage.setItem("sidebarCollapsed", JSON.stringify(sidebarCollapsed)) 
+    } catch {}
+  }, [sidebarCollapsed])
 
   if (!user) {
     return <div>Loading...</div>
@@ -148,34 +152,6 @@ export default function Dashboard() {
   return (
     <AuthGuard allowedRoles={["admin"]}>
       <div className="main-layout">
-        {/* visible hamburger (unique class) */}
-        <button
-          className="fp-hamburger"
-          aria-label="Toggle sidebar"
-          onClick={() => {
-            if (window.innerWidth <= 768) {
-              setMobileSidebarOpen((s) => !s)
-            } else {
-              setSidebarCollapsed((s) => !s)
-            }
-          }}
-          style={{
-            // inline to ensure visible regardless of other CSS
-            position: "fixed",
-            top: 14,
-            left: 14,
-            zIndex: 3001,
-            background: "#fff",
-            border: "none",
-            borderRadius: 6,
-            padding: "8px 10px",
-            cursor: "pointer",
-            boxShadow: "0 2px 6px rgba(0,0,0,0.12)"
-          }}
-        >
-          ☰
-        </button>
-
         {/* mobile overlay */}
         {mobileSidebarOpen && (
           <div
@@ -195,10 +171,11 @@ export default function Dashboard() {
         <main
           className="main-content"
           style={{
-            marginLeft: sidebarCollapsed ? 60 : 240,
-            transition: "margin-left 260ms ease",
             minHeight: "100vh",
             background: "#f8f9fa",
+            marginLeft: sidebarCollapsed ? "calc(60px + 16px)" : "calc(240px + 16px)",
+            width: sidebarCollapsed ? "calc(100% - (60px + 16px))" : "calc(100% - (240px + 16px))",
+            transition: "margin-left 260ms ease, width 260ms ease",
           }}
         >
           {/* Top Bar */}

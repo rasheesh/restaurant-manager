@@ -29,6 +29,15 @@ export default function UserManagement() {
     password: "",
   })
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
+  
+  // Sidebar state management
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("sidebarCollapsed") || "false")
+    } catch {
+      return false
+    }
+  })
 
   const roleMap: any = {
     1: "admin",
@@ -51,6 +60,13 @@ export default function UserManagement() {
 
     fetchUsers()
   }, [])
+
+  // Keep localStorage in sync with sidebar state
+  useEffect(() => {
+    try { 
+      localStorage.setItem("sidebarCollapsed", JSON.stringify(sidebarCollapsed)) 
+    } catch {}
+  }, [sidebarCollapsed])
 
   const fetchUsers = async () => {
     try {
@@ -242,7 +258,14 @@ export default function UserManagement() {
       <div style={{ display: "flex", minHeight: "100vh" }}>
         <Sidebar user={user} currentPage="/admin/users" />
 
-        <main className="main-content">
+        <main 
+          className="main-content"
+          style={{
+            marginLeft: sidebarCollapsed ? "calc(60px + 16px)" : "calc(240px + 16px)",
+            width: sidebarCollapsed ? "calc(100% - (60px + 16px))" : "calc(100% - (240px + 16px))",
+            transition: "margin-left 260ms ease, width 260ms ease",
+          }}
+        >
           <div className="page-header">
             <h1>👥 User Management</h1>
             <p>Manage user accounts and permissions</p>

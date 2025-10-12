@@ -78,6 +78,15 @@ export default function POSPage() {
   const [processingCheckout, setProcessingCheckout] = useState(false)
   const { toast } = useToast()
   const [loadingItems, setLoadingItems] = useState(true)
+  
+  // Sidebar state management
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("sidebarCollapsed") || "false")
+    } catch {
+      return false
+    }
+  })
 
   useEffect(() => {
     const userData = localStorage.getItem("user")
@@ -117,6 +126,13 @@ export default function POSPage() {
       .catch(() => {})
       .finally(()=> setLoadingItems(false))
   }, [router])
+
+  // Keep localStorage in sync with sidebar state
+  useEffect(() => {
+    try { 
+      localStorage.setItem("sidebarCollapsed", JSON.stringify(sidebarCollapsed)) 
+    } catch {}
+  }, [sidebarCollapsed])
 
   const categories = ["All", ...Array.from(new Set(dishes.map((dish) => dish.category)))]
 
@@ -725,7 +741,14 @@ export default function POSPage() {
       <div className="main-layout">
         <Sidebar user={user} currentPage="/pos" />
 
-        <main className="main-content">
+        <main 
+          className="main-content"
+          style={{
+            marginLeft: sidebarCollapsed ? "calc(60px + 16px)" : "calc(240px + 16px)",
+            width: sidebarCollapsed ? "calc(100% - (60px + 16px))" : "calc(100% - (240px + 16px))",
+            transition: "margin-left 260ms ease, width 260ms ease",
+          }}
+        >
           <SpinnerOverlay />
           <div className="top-bar">
             <h1 style={{ margin: 0, fontSize: "1.8rem", color: "#2d5a27" }}>Point of Sale</h1>
