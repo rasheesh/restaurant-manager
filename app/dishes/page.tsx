@@ -581,7 +581,7 @@ export default function DishesPage() {
           }}
         >
           <div className="top-bar">
-            <h1 style={{ margin: 0, fontSize: "1.8rem", color: "#2d5a27" }}>Dishes & Recipes</h1>
+            <h1 style={{ margin: 0, fontSize: "1.8rem", color: "#2d5a27" }}>Dishes & Item Management</h1>
             <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
               + Add New Dish
             </button>
