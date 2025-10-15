@@ -78,15 +78,6 @@ export default function POSPage() {
   const [processingCheckout, setProcessingCheckout] = useState(false)
   const { toast } = useToast()
   const [loadingItems, setLoadingItems] = useState(true)
-  
-  // Sidebar state management
-  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
-    try {
-      return JSON.parse(localStorage.getItem("sidebarCollapsed") || "false")
-    } catch {
-      return false
-    }
-  })
 
   useEffect(() => {
     const userData = localStorage.getItem("user")
@@ -126,13 +117,6 @@ export default function POSPage() {
       .catch(() => {})
       .finally(()=> setLoadingItems(false))
   }, [router])
-
-  // Keep localStorage in sync with sidebar state
-  useEffect(() => {
-    try { 
-      localStorage.setItem("sidebarCollapsed", JSON.stringify(sidebarCollapsed)) 
-    } catch {}
-  }, [sidebarCollapsed])
 
   const categories = ["All", ...Array.from(new Set(dishes.map((dish) => dish.category)))]
 
@@ -743,11 +727,6 @@ export default function POSPage() {
 
         <main 
           className="main-content"
-          style={{
-            marginLeft: sidebarCollapsed ? "calc(60px + 16px)" : "calc(240px + 16px)",
-            width: sidebarCollapsed ? "calc(100% - (60px + 16px))" : "calc(100% - (240px + 16px))",
-            transition: "margin-left 260ms ease, width 260ms ease",
-          }}
         >
           <SpinnerOverlay />
           <div className="top-bar">
@@ -760,39 +739,28 @@ export default function POSPage() {
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: "20px", height: "calc(100vh - 140px)" }}>
-            <div style={{ flex: "2", display: "flex", flexDirection: "column" }}>
-              <div style={{ marginBottom: "20px" }}>
-                <div style={{ marginBottom: "15px" }}>
+          <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-[calc(100vh-140px)]">
+            <div className="flex-1 lg:flex-[2] flex flex-col">
+              <div className="mb-4 lg:mb-6">
+                <div className="mb-4">
                   <input
                     type="text"
                     placeholder="Search dishes by name or category..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "12px 16px",
-                      fontSize: "14px",
-                      border: "2px solid #e9ecef",
-                      borderRadius: "8px",
-                      outline: "none",
-                      transition: "border-color 0.2s ease",
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = "#2d5a27"
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = "#e9ecef"
-                    }}
+                    className="w-full px-4 py-3 text-sm border-2 border-gray-200 rounded-lg outline-none transition-colors focus:border-green-600"
                   />
                 </div>
 
-                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "10px" }}>
+                <div className="flex flex-wrap gap-2 mb-3">
                   {categories.map((category) => (
                     <button
                       key={category}
-                      className={`btn ${selectedCategory === category ? "btn-primary" : "btn-secondary"}`}
-                      style={{ padding: "8px 16px", fontSize: "14px" }}
+                      className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        selectedCategory === category
+                          ? "bg-green-600 text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
                       onClick={() => setSelectedCategory(category)}
                     >
                       {category}
@@ -800,10 +768,9 @@ export default function POSPage() {
                   ))}
                 </div>
 
-                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                <div className="flex flex-wrap gap-2">
                   <button
-                    className="btn btn-success"
-                    style={{ padding: "8px 16px", fontSize: "14px", fontWeight: "600" }}
+                    className="px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition-colors"
                     onClick={openComboModal}
                   >
                     🍽️ Create Combo Meal
@@ -811,15 +778,7 @@ export default function POSPage() {
                 </div>
               </div>
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-                  gap: "15px",
-                  overflowY: "auto",
-                  flex: 1,
-                }}
-              >
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto flex-1">
                 {loadingItems && Array.from({ length: 8 }).map((_, i) => (
                   <div key={i} style={{ background:'#f8f9fa', border:'1px solid #e9ecef', borderRadius:8, height:120 }} />
                 ))}
@@ -931,58 +890,41 @@ export default function POSPage() {
               </div>
             </div>
 
-            <div
-              style={{
-                flex: "1",
-                background: "white",
-                borderRadius: "8px",
-                padding: "20px",
-                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                display: "flex",
-                flexDirection: "column",
-                minWidth: "350px",
-              }}
-            >
-              <h3 style={{ margin: "0 0 20px 0", color: "#2d5a27", display: "flex", justifyContent: "space-between" }}>
-                Order Cart
-                <span style={{ fontSize: "1rem", fontWeight: "normal", color: "#6c757d" }}>
+            <div className="flex-1 bg-white rounded-lg p-4 lg:p-6 shadow-md flex flex-col min-w-0 lg:min-w-[350px]">
+              <h3 className="mb-4 lg:mb-6 text-green-800 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                <span className="text-lg lg:text-xl font-semibold">Order Cart</span>
+                <span className="text-sm text-gray-600">
                   {getCartItemCount()} items
                 </span>
               </h3>
 
-              <div style={{ flex: 1, overflowY: "auto", marginBottom: "20px" }}>
+              <div className="flex-1 overflow-y-auto mb-4 lg:mb-6">
                 {cart.length === 0 ? (
-                  <div style={{ textAlign: "center", color: "#6c757d", padding: "40px 0" }}>
-                    <p>No items in cart</p>
-                    <p style={{ fontSize: "0.9rem" }}>Click on dishes to add them</p>
+                  <div className="text-center text-gray-600 py-10 lg:py-16">
+                    <p className="text-base lg:text-lg">No items in cart</p>
+                    <p className="text-sm mt-2">Click on dishes to add them</p>
                   </div>
                 ) : (
                   cart.map((item, index) => (
                     <div
                       key={index}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        padding: "12px 0",
-                        borderBottom: "1px solid #e9ecef",
-                      }}
+                      className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-3 border-b border-gray-200 gap-3"
                     >
-                      <div style={{ flex: 1 }}>
-                        <h5 style={{ margin: "0 0 4px 0", fontSize: "0.95rem" }}>
+                      <div className="flex-1 min-w-0">
+                        <h5 className="text-sm lg:text-base font-medium text-gray-900 truncate">
                           {item.dish.name}
                           {item.size === "half" && !item.isCombo && (
-                            <span style={{ fontSize: "0.8rem", color: "#6c757d", marginLeft: "5px" }}>(Half)</span>
+                            <span className="text-xs text-gray-500 ml-1">(Half)</span>
                           )}
                           {item.isCombo && (
-                            <span style={{ fontSize: "0.8rem", color: "#28a745", marginLeft: "5px" }}>(Combo)</span>
+                            <span className="text-xs text-green-600 ml-1">(Combo)</span>
                           )}
                         </h5>
-                        <p style={{ margin: 0, fontSize: "0.85rem", color: "#6c757d" }}>
+                        <p className="text-xs lg:text-sm text-gray-600 mt-1">
                           ₱{item.price.toFixed(2)} each
                         </p>
                         {item.isCombo && item.comboItems && (
-                          <div style={{ fontSize: "0.75rem", color: "#6c757d", marginTop: "4px" }}>
+                          <div className="text-xs text-gray-500 mt-1">
                             Includes:{" "}
                             {item.comboItems
                               .map((ci) => `${ci.dish.name}${ci.size === "half" ? " (Half)" : ""}`)
@@ -990,47 +932,24 @@ export default function POSPage() {
                           </div>
                         )}
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <div className="flex items-center gap-2 sm:gap-3">
                         <button
-                          style={{
-                            background: "#e9ecef",
-                            border: "none",
-                            borderRadius: "4px",
-                            width: "30px",
-                            height: "30px",
-                            cursor: "pointer",
-                          }}
+                          className="bg-gray-200 hover:bg-gray-300 text-gray-700 rounded w-8 h-8 flex items-center justify-center text-sm font-medium transition-colors touch-manipulation"
                           onClick={() => updateQuantity(index, item.quantity - 1)}
                         >
                           -
                         </button>
-                        <span style={{ minWidth: "20px", textAlign: "center", fontWeight: "600" }}>
+                        <span className="min-w-[20px] text-center font-semibold text-sm lg:text-base">
                           {item.quantity}
                         </span>
                         <button
-                          style={{
-                            background: "#e9ecef",
-                            border: "none",
-                            borderRadius: "4px",
-                            width: "30px",
-                            height: "30px",
-                            cursor: "pointer",
-                          }}
+                          className="bg-gray-200 hover:bg-gray-300 text-gray-700 rounded w-8 h-8 flex items-center justify-center text-sm font-medium transition-colors touch-manipulation"
                           onClick={() => updateQuantity(index, item.quantity + 1)}
                         >
                           +
                         </button>
                         <button
-                          style={{
-                            background: "#dc3545",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "4px",
-                            width: "30px",
-                            height: "30px",
-                            cursor: "pointer",
-                            marginLeft: "8px",
-                          }}
+                          className="bg-red-500 hover:bg-red-600 text-white rounded w-8 h-8 flex items-center justify-center text-sm font-medium ml-2 transition-colors touch-manipulation"
                           onClick={() => removeFromCart(index)}
                         >
                           ×
@@ -1041,22 +960,14 @@ export default function POSPage() {
                 )}
               </div>
 
-              <div style={{ borderTop: "2px solid #2d5a27", paddingTop: "15px" }}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: "15px",
-                  }}
-                >
-                  <h3 style={{ margin: 0, color: "#2d5a27" }}>Total:</h3>
-                  <h3 style={{ margin: 0, color: "#2d5a27" }}>₱{total.toFixed(2)}</h3>
+              <div className="border-t-2 border-green-800 pt-4">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg lg:text-xl font-bold text-green-800">Total:</h3>
+                  <h3 className="text-lg lg:text-xl font-bold text-green-800">₱{total.toFixed(2)}</h3>
                 </div>
 
                 <button
-                  className="btn btn-success w-full"
-                  style={{ padding: "15px", fontSize: "1.1rem", fontWeight: "600" }}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white py-3 lg:py-4 px-6 rounded-lg text-base lg:text-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
                   disabled={cart.length === 0}
                   onClick={() => setShowPaymentModal(true)}
                 >

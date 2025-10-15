@@ -173,9 +173,6 @@ export default function Dashboard() {
           style={{
             minHeight: "100vh",
             background: "#f8f9fa",
-            marginLeft: sidebarCollapsed ? "calc(60px + 16px)" : "calc(240px + 16px)",
-            width: sidebarCollapsed ? "calc(100% - (60px + 16px))" : "calc(100% - (240px + 16px))",
-            transition: "margin-left 260ms ease, width 260ms ease",
           }}
         >
           {/* Top Bar */}

@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "../src/styles/sidebar.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -147,23 +148,6 @@
 .main-layout {
   display: flex;
   min-height: 100vh;
-}
-
-.sidebar {
-  width: 280px;
-  background: var(--white);
-  border-right: 1px solid var(--border-color);
-  box-shadow: var(--shadow);
-  position: fixed;
-  height: 100vh;
-  overflow-y: auto;
-  z-index: 1000;
-}
-
-.main-content {
-  flex: 1;
-  margin-left: 280px;
-  padding: 20px;
 }
 
 .top-bar {

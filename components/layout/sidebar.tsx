@@ -44,12 +44,12 @@ export default function Sidebar({ user, currentPage, collapsed, mobileOpen }: Si
     } catch {}
   }, [collapsedState])
 
-  // Notify SidebarSync component when state changes
+  // Notify SidebarSync component when hover state changes
   useEffect(() => {
     try {
-      window.dispatchEvent(new CustomEvent("sidebar:toggled", { detail: { collapsed: collapsedState } }))
+      window.dispatchEvent(new CustomEvent("sidebar:toggled", { detail: { collapsed: !isHovered, fromHover: true } }))
     } catch {}
-  }, [collapsedState])
+  }, [isHovered])
 
   // Listen for external state changes (from other tabs)
   useEffect(() => {
@@ -91,25 +91,31 @@ export default function Sidebar({ user, currentPage, collapsed, mobileOpen }: Si
   }
 
   const isCompact = Boolean(collapsedState) && !isHovered
-  const widthFull = 240
-  const widthCompact = 60
-  const width = isCompact ? widthCompact : widthFull
 
   return (
-    <>
-      {/* Hamburger button - always visible */}
+    <nav
+      className={`sidebar fp-sidebar ${collapsedState ? "collapsed" : ""} ${isHovered && collapsedState ? "hovered" : ""} ${mobileOpen ? "show-mobile" : ""}`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      aria-expanded={!collapsedState}
+      style={{
+        transform: mobileOpen ? "translateX(0)" : undefined,
+        position: "relative",
+      }}
+    >
+      {/* Hamburger button - aligned to left edge */}
       <button
-        className="fp-hamburger"
+        className="hamburger-toggle"
         aria-label="Toggle sidebar"
         onClick={() => {
           setCollapsedState((s) => !s)
           setIsHovered(false)
         }}
         style={{
-          position: "fixed",
-          top: "14px",
-          left: collapsedState ? "calc(60px - 8px)" : "calc(240px - 8px)",
-          zIndex: 3001,
+          position: "absolute",
+          left: "10px",
+          top: "10px",
+          zIndex: 10,
           background: "#ffffff",
           color: "#222222",
           border: "1px solid rgba(0,0,0,0.06)",
@@ -117,48 +123,35 @@ export default function Sidebar({ user, currentPage, collapsed, mobileOpen }: Si
           padding: "8px 10px",
           cursor: "pointer",
           boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-          transition: "left 260ms ease",
+          transition: "all 200ms ease",
         }}
       >
         ☰
       </button>
 
-      <nav
-        className={`sidebar fp-sidebar ${collapsedState ? "collapsed" : ""} ${isHovered && collapsedState ? "hovered" : ""} ${mobileOpen ? "show-mobile" : ""}`}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        aria-expanded={!collapsedState}
-        style={{
-          width: collapsedState ? "60px" : "240px",
-          minWidth: collapsedState ? "60px" : "240px",
-          maxWidth: collapsedState ? "60px" : "240px",
-          transform: mobileOpen ? "translateX(0)" : undefined,
-          transition: "width 260ms ease, min-width 260ms ease, max-width 260ms ease",
-        }}
-      >
-        <div className="sidebar-header" style={{ padding: "20px", borderBottom: "1px solid rgba(222,226,230,0.1)" }}>
-          <h2 className="logo" style={{ color: "#222222", margin: 0, fontSize: "1.25rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            {!isCompact ? "Food Business POS" : "POS"}
-          </h2>
-          <p className="branch-info" style={{ color: "rgba(0,0,0,0.6)", margin: "5px 0 0 0", fontSize: "0.9rem" }}>
-            {branchName} Branch • {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-          </p>
-          <div
-            className="role-badge"
-            style={{
-              display: "inline-block",
-              background: user.role === "admin" ? "#dc3545" : user.role === "supervisor" ? "#ffc107" : "#28a745",
-              color: user.role === "supervisor" ? "#000" : "#fff",
-              padding: "2px 8px",
-              borderRadius: "12px",
-              fontSize: "0.75rem",
-              fontWeight: "600",
-              marginTop: "5px",
-            }}
-          >
-            {user.role.toUpperCase()}
-          </div>
+      <div className="sidebar-header" style={{ padding: "20px 20px 20px 50px", borderBottom: "1px solid rgba(222,226,230,0.1)" }}>
+        <h2 className="logo" style={{ color: "#222222", margin: 0, fontSize: "1.25rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          Food Business POS
+        </h2>
+        <p className="branch-info" style={{ color: "rgba(0,0,0,0.6)", margin: "5px 0 0 0", fontSize: "0.9rem" }}>
+          {branchName} Branch • {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+        </p>
+        <div
+          className="role-badge"
+          style={{
+            display: "inline-block",
+            background: user.role === "admin" ? "#dc3545" : user.role === "supervisor" ? "#ffc107" : "#28a745",
+            color: user.role === "supervisor" ? "#000" : "#fff",
+            padding: "2px 8px",
+            borderRadius: "12px",
+            fontSize: "0.75rem",
+            fontWeight: "600",
+            marginTop: "5px",
+          }}
+        >
+          {user.role.toUpperCase()}
         </div>
+      </div>
 
         <ul className="nav-menu" style={{ padding: 8, margin: 0, listStyle: "none", flex: 1 }}>
           {menuItems.map((item) => {
@@ -174,8 +167,8 @@ export default function Sidebar({ user, currentPage, collapsed, mobileOpen }: Si
                       display: "flex",
                       alignItems: "center",
                       gap: "12px",
-                      padding: collapsedState ? "10px 8px" : "10px 16px",
-                      justifyContent: collapsedState ? "center" : "flex-start",
+                      padding: isCompact ? "10px 8px" : "10px 16px",
+                      justifyContent: isCompact ? "center" : "flex-start",
                       textDecoration: "none",
                       borderRadius: "6px",
                       transition: "background 200ms ease, color 200ms ease",
@@ -183,10 +176,10 @@ export default function Sidebar({ user, currentPage, collapsed, mobileOpen }: Si
                       overflow: "hidden",
                     }}
                   >
-                    <span style={{ width: "28px", textAlign: "center", flexShrink: 0 }}>
+                    <span style={{ width: "28px", textAlign: isCompact ? "center" : "left", flexShrink: 0 }}>
                       {item.label.split(" ")[0]}
                     </span>
-                    <span style={{ display: collapsedState ? "none" : "inline" }}>
+                    <span style={{ display: isCompact ? "none" : "inline" }}>
                       {item.label.split(" ").slice(1).join(" ")}
                     </span>
                   </a>
@@ -197,7 +190,7 @@ export default function Sidebar({ user, currentPage, collapsed, mobileOpen }: Si
 
           <RoleChecker allowedRoles={["admin"]}>
             <li className="nav-item" style={{ marginTop: "20px", borderTop: "1px solid rgba(0,0,0,0.04)", paddingTop: "20px" }}>
-              {!collapsedState && <div style={{ padding: "12px 20px", color: "rgba(0,0,0,0.6)", fontSize: "0.85rem", fontWeight: 600 }}>ADMIN TOOLS</div>}
+              {!isCompact && <div style={{ padding: "12px 20px", color: "rgba(0,0,0,0.6)", fontSize: "0.85rem", fontWeight: 600 }}>ADMIN TOOLS</div>}
             </li>
             <li className="nav-item">
               <a
@@ -208,15 +201,15 @@ export default function Sidebar({ user, currentPage, collapsed, mobileOpen }: Si
                   display: "flex",
                   alignItems: "center",
                   gap: "12px",
-                  padding: collapsedState ? "10px 8px" : "10px 16px",
-                  justifyContent: collapsedState ? "center" : "flex-start",
+                  padding: isCompact ? "10px 8px" : "10px 16px",
+                  justifyContent: "flex-start",
                   textDecoration: "none",
                   borderRadius: "6px",
                   transition: "background 200ms ease, color 200ms ease",
                 }}
               >
                 <span style={{ width: "28px", textAlign: "center", flexShrink: 0 }}>👥</span>
-                <span style={{ display: collapsedState ? "none" : "inline" }}>User Management</span>
+                <span style={{ display: isCompact ? "none" : "inline" }}>User Management</span>
               </a>
             </li>
             <li className="nav-item">
@@ -228,15 +221,15 @@ export default function Sidebar({ user, currentPage, collapsed, mobileOpen }: Si
                   display: "flex",
                   alignItems: "center",
                   gap: "12px",
-                  padding: collapsedState ? "10px 8px" : "10px 16px",
-                  justifyContent: collapsedState ? "center" : "flex-start",
+                  padding: isCompact ? "10px 8px" : "10px 16px",
+                  justifyContent: "flex-start",
                   textDecoration: "none",
                   borderRadius: "6px",
                   transition: "background 200ms ease, color 200ms ease",
                 }}
               >
                 <span style={{ width: "28px", textAlign: "center", flexShrink: 0 }}>⚙️</span>
-                <span style={{ display: collapsedState ? "none" : "inline" }}>System Settings</span>
+                <span style={{ display: isCompact ? "none" : "inline" }}>System Settings</span>
               </a>
             </li>
           </RoleChecker>
@@ -254,19 +247,18 @@ export default function Sidebar({ user, currentPage, collapsed, mobileOpen }: Si
                 display: "flex",
                 alignItems: "center",
                 gap: "12px",
-                padding: collapsedState ? "10px 8px" : "10px 16px",
-                justifyContent: collapsedState ? "center" : "flex-start",
+                padding: isCompact ? "10px 8px" : "10px 16px",
+                justifyContent: "flex-start",
                 textDecoration: "none",
                 borderRadius: "6px",
                 transition: "background 200ms ease, color 200ms ease",
               }}
             >
               <span style={{ width: "28px", textAlign: "center", flexShrink: 0 }}>🚪</span>
-              <span style={{ display: collapsedState ? "none" : "inline" }}>Logout</span>
+              <span style={{ display: isCompact ? "none" : "inline" }}>Logout</span>
             </a>
           </li>
         </ul>
-      </nav>
-    </>
+    </nav>
   )
 }

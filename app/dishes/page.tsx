@@ -98,7 +98,7 @@ export default function DishesPage() {
   const [showModal, setShowModal] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
-  
+
   // Sidebar state management
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
     try {
@@ -108,29 +108,8 @@ export default function DishesPage() {
     }
   })
 
-  useEffect(() => {
-    fetch('/api/inventory')
-      .then(r => r.json())
-      .then((rows) => {
-        if (Array.isArray(rows)) {
-          // Map inventory items to ingredient names, units, cost, and stock
-          setInventoryItems(
-            rows
-              .filter((item: any) => {
-                // Only show items with quantity > 0 and valid ingredient name
-                return (Number(item.quantity ?? item.stock ?? 0) > 0) && (item.ingredient || item.name)
-              })
-              .map((item: any) => ({
-                name: item.ingredient || item.name,
-                unit: item.unit || (item.default_unit ?? "kg"),
-                costPerUnit: Number(item.unitCost ?? item.cost_per_unit ?? 0),
-                stock: Number(item.quantity ?? item.stock ?? 0),
-              }))
-          );
-        }
-      })
-      .catch(() => { });
-  }, []);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+
   const [selectedCategory, setSelectedCategory] = useState<string>("All")
   const [searchQuery, setSearchQuery] = useState<string>("")
   const [categories, setCategories] = useState<Array<{ id: number; name: string }>>([])
@@ -153,6 +132,34 @@ export default function DishesPage() {
   const router = useRouter()
 
   useEffect(() => {
+    fetch('/api/inventory')
+      .then(r => r.json())
+      .then((rows) => {
+        if (Array.isArray(rows)) {
+          // Map inventory items to ingredient names, units, cost, and stock
+          setInventoryItems(
+            rows
+              .filter((item: any) => {
+                // Only show items with quantity > 0 and valid ingredient name
+                return (Number(item.quantity ?? item.stock ?? 0) > 0) && (item.ingredient || item.name)
+              })
+              .map((item: any) => ({
+                name: item.ingredient || item.name,
+                unit: item.unit || (item.default_unit ?? "kg"),
+                costPerUnit: Number(item.unitCost ?? item.cost_per_unit ?? 0),
+                stock: Number(item.quantity ?? item.stock ?? 0),
+              }))
+          )
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to fetch inventory:', error)
+      })
+  }, [])
+
+  // Load categories and items
+  useEffect(() => {
+    if (inventoryItems.length === 0) return;
     const userData = localStorage.getItem("user")
     if (!userData) {
       router.push("/")
@@ -166,34 +173,54 @@ export default function DishesPage() {
     setUser(parsedUser)
     // Load categories and items
     Promise.all([
-      fetch('/api/categories').then(r => r.json()).catch(() => []),
-      fetch('/api/items').then(r => r.json()).catch(() => []),
-    ]).then(([cats, items]) => {
+      fetch('/api/categories').then(r => r.json()).then(data => Array.isArray(data) ? data : []).catch(() => []),
+      fetch('/api/items').then(r => r.json()).then(data => Array.isArray(data) ? data : []).catch(() => []),
+      fetch('/api/recipes').then(r => r.json()).then(data => Array.isArray(data) ? data : []).catch(() => []),
+      fetch('/api/ingredients').then(r => r.json()).then(data => Array.isArray(data) ? data : []).catch(() => []),
+    ]).then(([cats, items, allRecipes, allIngredients]) => {
       if (Array.isArray(items)) {
-        setDishes(items.map((r: any) => ({
-          id: r.id,
-          name: r.name,
-          servings: r.total_servings ?? 0,
-          pricePerServing: Number(r.price ?? 0),
-          cost: 0,
-          totalSellingPrice: Number(r.price ?? 0),
-          profit: 0,
-          profitPerServing: 0,
-          category: r.category || 'Uncategorized',
-          status: r.available ? 'available' : 'hidden',
-          ingredients: [],
-        })))
+        const ingredientMap = new Map(allIngredients.map((ing: any) => [ing.id, ing.name]));
+        const recipeMap = new Map<number, any[]>();
+        allRecipes.forEach((recipe: any) => {
+          if (!recipeMap.has(recipe.item_id)) recipeMap.set(recipe.item_id, []);
+          recipeMap.get(recipe.item_id)!.push({
+            name: ingredientMap.get(recipe.ingredient_id) || '',
+            quantity: recipe.quantity,
+            unit: recipe.recipe_unit,
+            cost: calculateIngredientCost(ingredientMap.get(recipe.ingredient_id) || '', recipe.quantity, recipe.recipe_unit)
+          });
+        });
+        setDishes(items.map((r: any) => {
+          const ingredients = recipeMap.get(r.id) || [];
+          const cost = ingredients.reduce((sum, ing) => sum + ing.cost, 0);
+          const totalSellingPrice = (r.total_servings ?? 0) * Number(r.price ?? 0);
+          const profit = totalSellingPrice - cost;
+          const profitPerServing = (r.total_servings ?? 0) > 0 ? profit / (r.total_servings ?? 0) : 0;
+          return {
+            id: r.id,
+            name: r.name,
+            servings: r.total_servings ?? 0,
+            pricePerServing: Number(r.price ?? 0),
+            cost,
+            totalSellingPrice,
+            profit,
+            profitPerServing,
+            category: r.category || 'Uncategorized',
+            status: r.available ? 'available' : 'hidden',
+            ingredients,
+          };
+        }));
       }
       if (Array.isArray(cats)) {
-        setCategories(cats.filter((c: any) => c && c.id && c.name))
+        setCategories(cats.filter((c: any) => c && c.id && c.name));
       }
     })
-  }, [router])
+  }, [inventoryItems.length])
 
   // Keep localStorage in sync with sidebar state
   useEffect(() => {
-    try { 
-      localStorage.setItem("sidebarCollapsed", JSON.stringify(sidebarCollapsed)) 
+    try {
+      localStorage.setItem("sidebarCollapsed", JSON.stringify(sidebarCollapsed))
     } catch {}
   }, [sidebarCollapsed])
 
@@ -572,13 +599,8 @@ export default function DishesPage() {
       <div className="main-layout">
         <Sidebar user={user} currentPage="/dishes" />
 
-        <main 
+        <main
           className="main-content"
-          style={{
-            marginLeft: sidebarCollapsed ? "calc(60px + 16px)" : "calc(240px + 16px)",
-            width: sidebarCollapsed ? "calc(100% - (60px + 16px))" : "calc(100% - (240px + 16px))",
-            transition: "margin-left 260ms ease, width 260ms ease",
-          }}
         >
           <div className="top-bar">
             <h1 style={{ margin: 0, fontSize: "1.8rem", color: "#2d5a27" }}>Dishes & Item Management</h1>
@@ -920,518 +942,355 @@ export default function DishesPage() {
                       </small>
                     )}
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Image URL (optional)</label>
-                    <input
-                      type="url"
-                      className="form-input"
-                      style={{ width: "100%", padding: "12px", fontSize: "14px" }}
-                      value={newDishImageUrl}
-                      onChange={(e) => setNewDishImageUrl(e.target.value)}
-                      placeholder="https://example.com/image.jpg"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Upload Image (mobile-friendly)</label>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        onChange={async (e) => {
-                          const f = e.target.files?.[0]
-                          if (!f) return
-                          try {
-                            setUploading(true)
-                            const fd = new FormData()
-                            fd.append('file', f)
-                            const res = await fetch('/api/upload', { method: 'POST', body: fd })
-                            const data = await res.json()
-                            if (res.ok && data?.url) {
-                              setNewDishImageUrl(data.url)
-                              setFormError("")
-                            } else {
-                              setFormError(data?.error || 'Upload failed')
-                            }
-                          } catch (err) {
-                            setFormError('Upload failed')
-                          } finally {
-                            setUploading(false)
-                          }
-                        }}
-                      />
-                      <button
-                        className="btn btn-secondary"
-                        type="button"
-                        disabled={uploading}
-                        onClick={() => {
-                          const input = document.createElement('input')
-                          input.type = 'file'
-                          input.accept = 'image/*'
-                          input.onchange = (ev: any) => {
-                            const f = ev.target.files?.[0]
-                            if (!f) return
-                            const dt = new DataTransfer()
-                            dt.items.add(f)
-                              ; (document.querySelector('input[type=file][accept^="image/"]') as HTMLInputElement)?.dispatchEvent(new Event('change'))
-                          }
-                          input.click()
-                        }}
-                      >
-                        {uploading ? 'Uploading...' : 'Choose Image'}
-                      </button>
-                      {newDishImageUrl && (
-                        <img src={newDishImageUrl} alt="preview" style={{ height: 48, borderRadius: 6, border: '1px solid #e9ecef' }} />
-                      )}
-                    </div>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Total Selling Price (₱)</label>
-                    <input
-                      type="number"
-                      className="form-input"
-                      style={{
-                        width: "100%",
-                        padding: "12px",
-                        fontSize: "14px",
-                        background: "#f8f9fa",
-                        color: "#6c757d",
-                      }}
-                      value={newDish.totalSellingPrice.toFixed(2)}
-                      disabled
-                    />
-                    <small style={{ color: "#6c757d", fontSize: "12px", display: "block", marginTop: "4px" }}>
-                      Auto-calculated: {newDish.servings} × ₱{newDish.pricePerServing.toFixed(2)}
-                    </small>
-                  </div>
                 </div>
-
-                {newDish.category !== "Groceries & Others" && newDish.ingredients.length > 0 && (
-                  <div style={{ overflowX: "auto", marginBottom: "20px" }}>
-                    <table className="table" style={{ minWidth: "700px" }}>
-                      <thead>
-                        <tr>
-                          <th style={{ minWidth: "150px" }}>Ingredient</th>
-                          <th style={{ minWidth: "100px" }}>Quantity</th>
-                          <th style={{ minWidth: "80px" }}>Unit</th>
-                          <th style={{ minWidth: "120px" }}>Cost (₱)</th>
-                          <th style={{ minWidth: "80px" }}>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {newDish.ingredients.map((ingredient, index) => {
-                          const inventoryItem = inventoryItems.find((item) => item.name === ingredient.name);
-                          const showConversion = inventoryItem && ingredient.unit !== inventoryItem.unit && ingredient.quantity > 0;
-                          const convertedQty = showConversion ? convertUnits(ingredient.quantity, ingredient.unit, inventoryItem.unit) : 0;
-
-                          return (
-                            <tr key={index}>
-                              <td>
-                                <select
-                                  className="form-select"
-                                  style={{ width: "100%", padding: "8px", fontSize: "14px" }}
-                                  value={ingredient.name}
-                                  onChange={(e) => handleNewDishIngredientChange(index, "name", e.target.value)}
-                                >
-                                  <option value="">Select ingredient...</option>
-                                  {inventoryItems.map((item) => (
-                                    <option key={item.name} value={item.name}>
-                                      {item.name}
-                                    </option>
-                                  ))}
-                                </select>
-                              </td>
-                              <td>
-                                <input
-                                  type="number"
-                                  step="0.001"
-                                  className="form-input"
-                                  style={{ width: "100%", padding: "8px", fontSize: "14px" }}
-                                  value={ingredient.quantity}
-                                  onChange={(e) =>
-                                    handleNewDishIngredientChange(
-                                      index,
-                                      "quantity",
-                                      Number.parseFloat(e.target.value) || 0,
-                                    )
-                                  }
-                                  placeholder="0.000"
-                                />
-                              </td>
-                              <td>
-                                <select
-                                  className="form-select"
-                                  style={{ width: "100%", padding: "8px", fontSize: "14px" }}
-                                  value={ingredient.unit}
-                                  onChange={(e) => handleNewDishIngredientChange(index, "unit", e.target.value)}
-                                >
-                                  <option value="">Select unit...</option>
-                                  {measurementUnits.map((unit) => (
-                                    <option key={unit} value={unit}>
-                                      {unit}
-                                    </option>
-                                  ))}
-                                </select>
-                              </td>
-                              <td>
-                                <div style={{ fontWeight: "600" }}>₱{ingredient.cost.toFixed(2)}</div>
-                                {showConversion && (
-                                  <small style={{ color: "#6c757d", fontSize: "11px", display: "block" }}>
-                                    ≈ {convertedQty.toFixed(3)} {inventoryItem.unit}
-                                    <br />@ ₱{inventoryItem.costPerUnit}/{inventoryItem.unit}
-                                  </small>
-                                )}
-                              </td>
-                              <td>
-                                <button
-                                  className="btn btn-danger"
-                                  style={{ padding: "6px 10px", fontSize: "12px", width: "100%" }}
-                                  onClick={() => {
-                                    const updatedIngredients = newDish.ingredients.filter((_, i) => i !== index);
-                                    const totalCost = updatedIngredients.reduce((sum, ing) => sum + ing.cost, 0);
-                                    setNewDish({
-                                      ...newDish,
-                                      ingredients: updatedIngredients,
-                                      cost: totalCost,
-                                      profit: newDish.totalSellingPrice - totalCost,
-                                    });
-                                  }}
-                                >
-                                  Remove
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                      <tfoot>
-                        <tr style={{ background: "#f8f9fa", fontWeight: "600" }}>
-                          <td colSpan={3}>Total Cost</td>
-                          <td>₱{newDish.cost.toFixed(2)}</td>
-                          <td></td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                )}
+                <div className="form-group">
+                  <label className="form-label">Image URL (optional)</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    style={{ width: "100%", padding: "12px", fontSize: "14px" }}
+                    value={newDishImageUrl}
+                    onChange={(e) => setNewDishImageUrl(e.target.value)}
+                    placeholder="Enter image URL"
+                  />
+                </div>
 
                 {newDish.category !== "Groceries & Others" && (
-                  <button className="btn btn-secondary" style={{ marginBottom: "20px" }} onClick={addIngredientToNewDish}>
-                    + Add Ingredient
-                  </button>
+                  <div style={{ marginBottom: "30px" }}>
+                    <h3 style={{ marginBottom: "15px", color: "#2d5a27" }}>Ingredients</h3>
+                    {newDish.ingredients.map((ingredient, index) => (
+                      <div key={index} style={{ display: "flex", gap: "10px", marginBottom: "10px", alignItems: "center" }}>
+                        <select
+                          className="form-select"
+                          style={{ flex: 1, padding: "8px", fontSize: "14px" }}
+                          value={ingredient.name}
+                          onChange={(e) => handleNewDishIngredientChange(index, "name", e.target.value)}
+                        >
+                          <option value="">Select ingredient</option>
+                          {inventoryItems.map((item) => (
+                            <option key={item.name} value={item.name}>{item.name}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="Quantity"
+                          className="form-input"
+                          style={{ width: "100px", padding: "8px", fontSize: "14px" }}
+                          value={ingredient.quantity}
+                          onChange={(e) => handleNewDishIngredientChange(index, "quantity", Number.parseFloat(e.target.value) || 0)}
+                        />
+                        <select
+                          className="form-select"
+                          style={{ width: "80px", padding: "8px", fontSize: "14px" }}
+                          value={ingredient.unit}
+                          onChange={(e) => handleNewDishIngredientChange(index, "unit", e.target.value)}
+                        >
+                          {measurementUnits.map((unit) => (
+                            <option key={unit} value={unit}>{unit}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="Cost"
+                          className="form-input"
+                          style={{ width: "100px", padding: "8px", fontSize: "14px" }}
+                          value={ingredient.cost}
+                          disabled
+                        />
+                        <button
+                          className="btn btn-danger"
+                          style={{ padding: "8px" }}
+                          onClick={() => {
+                            const updatedIngredients = newDish.ingredients.filter((_, i) => i !== index)
+                            setNewDish({ ...newDish, ingredients: updatedIngredients })
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      className="btn btn-secondary"
+                      onClick={addIngredientToNewDish}
+                    >
+                      Add Ingredient
+                    </button>
+                  </div>
                 )}
 
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-                    gap: "15px",
-                    marginTop: "20px",
-                    padding: "20px",
-                    background: "#f8f9fa",
-                    borderRadius: "6px",
-                  }}
-                >
-                  <div>
-                    <strong>{newDish.category === "Groceries & Others" ? "Item Cost:" : "Recipe Cost:"}</strong>
-                    <br />₱{newDish.cost.toFixed(2)}
-                  </div>
-                  <div>
-                    <strong>Total Selling Price:</strong>
-                    <br />₱{newDish.totalSellingPrice.toFixed(2)}
-                  </div>
-                  <div style={{ color: newDish.profit >= 0 ? "#28a745" : "#dc3545" }}>
-                    <strong>Profit:</strong>
-                    <br />₱{newDish.profit.toFixed(2)}
-                  </div>
-                  <div style={{ color: newDish.profit >= 0 ? "#28a745" : "#dc3545" }}>
-                    <strong>Profit/Serving:</strong>
-                    <br />₱{newDish.profitPerServing.toFixed(2)}
-                  </div>
-                  <div style={{ color: newDish.profit >= 0 ? "#28a745" : "#dc3545" }}>
-                    <strong>Margin:</strong>
-                    <br />
-                    {newDish.totalSellingPrice > 0
-                      ? ((newDish.profit / newDish.totalSellingPrice) * 100).toFixed(1)
-                      : 0}
-                    %
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    marginTop: "30px",
-                    display: "flex",
-                    flexDirection: "row",
-                    justifyContent: "flex-end",
-                    gap: "10px",
-                    flexWrap: "wrap",
-                  }}
-                >
+                <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
                   <button
                     className="btn btn-secondary"
-                    style={{ minWidth: "100px", padding: "12px 20px" }}
                     onClick={() => setShowAddModal(false)}
                   >
                     Cancel
                   </button>
                   <button
                     className="btn btn-primary"
-                    style={{ minWidth: "100px", padding: "12px 20px" }}
                     onClick={handleSaveNewDish}
                   >
                     Save Dish
                   </button>
                 </div>
               </div>
-            </div>
-          )}
+          </div>
+        )}
 
-          {showModal && selectedDish && (
+        {showModal && selectedDish && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: "rgba(0,0,0,0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 1000,
+              padding: "20px",
+            }}
+            onClick={() => setShowModal(false)}
+          >
             <div
               style={{
-                position: "fixed",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: "rgba(0,0,0,0.5)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 1000,
+                background: "white",
+                borderRadius: "8px",
+                padding: "30px",
+                maxWidth: "900px",
+                width: "95%",
+                maxHeight: "90vh",
+                overflow: "auto",
               }}
-              onClick={() => setShowModal(false)}
+              onClick={(e) => e.stopPropagation()}
             >
               <div
                 style={{
-                  background: "white",
-                  borderRadius: "8px",
-                  padding: "30px",
-                  maxWidth: "800px",
-                  width: "90%",
-                  maxHeight: "80vh",
-                  overflow: "auto",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "20px",
                 }}
-                onClick={(e) => e.stopPropagation()}
               >
-                <div
+                <h2 style={{ margin: 0, color: "#2d5a27" }}>{editMode ? "Edit Dish" : "View Dish"}</h2>
+                <button
                   style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: "20px",
+                    background: "none",
+                    border: "none",
+                    fontSize: "24px",
+                    cursor: "pointer",
+                    color: "#6c757d",
                   }}
+                  onClick={() => setShowModal(false)}
                 >
-                  <h2 style={{ margin: 0, color: "#2d5a27" }}>
-                    {editMode ? "Edit" : "View"} Recipe: {selectedDish.name} ({selectedDish.servings} servings)
-                  </h2>
-                  <button
-                    style={{
-                      background: "none",
-                      border: "none",
-                      fontSize: "24px",
-                      cursor: "pointer",
-                      color: "#6c757d",
-                    }}
-                    onClick={() => setShowModal(false)}
-                  >
-                    ×
-                  </button>
-                </div>
+                  ×
+                </button>
+              </div>
 
-                {editMode && (
-                  <div className="grid grid-4 mb-20">
-                    <div className="form-group">
-                      <label className="form-label">Dish Name</label>
-                      <input
-                        type="text"
-                        className="form-input"
-                        value={selectedDish.name}
-                        onChange={(e) => setSelectedDish({ ...selectedDish, name: e.target.value })}
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Number of Servings</label>
-                      <input
-                        type="number"
-                        min="1"
-                        className="form-input"
-                        value={selectedDish.servings}
-                        onChange={(e) =>
-                          handleSelectedDishPriceChange("servings", Number.parseInt(e.target.value) || 1)
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                  gap: "20px",
+                  marginBottom: "30px",
+                }}
+              >
+                <div className="form-group">
+                  <label className="form-label">Dish Name</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    style={{ width: "100%", padding: "12px", fontSize: "14px" }}
+                    value={selectedDish.name}
+                    onChange={(e) => setSelectedDish({ ...selectedDish, name: e.target.value })}
+                    disabled={!editMode}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Category</label>
+                  <select
+                    className="form-select"
+                    style={{ width: "100%", padding: "12px", fontSize: "14px" }}
+                    value={selectedDish.category}
+                    onChange={(e) => setSelectedDish({ ...selectedDish, category: e.target.value })}
+                    disabled={!editMode}
+                  >
+                    {(() => {
+                      const dbCategoryNames = categories.map(c => c.name);
+                      const allCategories = [...dishCategories];
+                      categories.forEach(c => {
+                        if (!dishCategories.includes(c.name)) {
+                          allCategories.push(c.name);
                         }
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Selling Price per Serving (₱)</label>
+                      });
+                      return allCategories.map((category) => (
+                        <option key={category} value={category}>{category}</option>
+                      ));
+                    })()}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Number of Servings</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    style={{ width: "100%", padding: "12px", fontSize: "14px" }}
+                    value={selectedDish.servings}
+                    onChange={(e) => handleSelectedDishPriceChange("servings", Number.parseInt(e.target.value) || 0)}
+                    disabled={!editMode}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Selling Price per Serving (₱)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="form-input"
+                    style={{ width: "100%", padding: "12px", fontSize: "14px" }}
+                    value={selectedDish.pricePerServing}
+                    onChange={(e) => handleSelectedDishPriceChange("pricePerServing", Number.parseFloat(e.target.value) || 0)}
+                    disabled={!editMode}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Recipe Cost (₱)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="form-input"
+                    style={{ width: "100%", padding: "12px", fontSize: "14px" }}
+                    value={selectedDish.cost}
+                    disabled
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Total Selling Price (₱)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="form-input"
+                    style={{ width: "100%", padding: "12px", fontSize: "14px" }}
+                    value={selectedDish.totalSellingPrice}
+                    disabled
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Profit (₱)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="form-input"
+                    style={{ width: "100%", padding: "12px", fontSize: "14px" }}
+                    value={selectedDish.profit}
+                    disabled
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Profit per Serving (₱)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="form-input"
+                    style={{ width: "100%", padding: "12px", fontSize: "14px" }}
+                    value={selectedDish.profitPerServing}
+                    disabled
+                  />
+                </div>
+              </div>
+
+              {editMode && (
+                <div style={{ marginBottom: "30px" }}>
+                  <h3 style={{ marginBottom: "15px", color: "#2d5a27" }}>Ingredients</h3>
+                  {selectedDish.ingredients.map((ingredient, index) => (
+                    <div key={index} style={{ display: "flex", gap: "10px", marginBottom: "10px", alignItems: "center" }}>
+                      <select
+                        className="form-select"
+                        style={{ flex: 1, padding: "8px", fontSize: "14px" }}
+                        value={ingredient.name}
+                        onChange={(e) => handleIngredientChange(index, "name", e.target.value)}
+                      >
+                        <option value="">Select ingredient</option>
+                        {inventoryItems.map((item) => (
+                          <option key={item.name} value={item.name}>{item.name}</option>
+                        ))}
+                      </select>
                       <input
                         type="number"
                         step="0.01"
+                        placeholder="Quantity"
                         className="form-input"
-                        value={selectedDish.pricePerServing}
-                        onChange={(e) =>
-                          handleSelectedDishPriceChange("pricePerServing", Number.parseFloat(e.target.value) || 0)
-                        }
+                        style={{ width: "100px", padding: "8px", fontSize: "14px" }}
+                        value={ingredient.quantity}
+                        onChange={(e) => handleIngredientChange(index, "quantity", Number.parseFloat(e.target.value) || 0)}
                       />
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Total Selling Price (₱)</label>
+                      <select
+                        className="form-select"
+                        style={{ width: "80px", padding: "8px", fontSize: "14px" }}
+                        value={ingredient.unit}
+                        onChange={(e) => handleIngredientChange(index, "unit", e.target.value)}
+                      >
+                        {measurementUnits.map((unit) => (
+                          <option key={unit} value={unit}>{unit}</option>
+                        ))}
+                      </select>
                       <input
                         type="number"
+                        step="0.01"
+                        placeholder="Cost"
                         className="form-input"
-                        value={selectedDish.totalSellingPrice.toFixed(2)}
+                        style={{ width: "100px", padding: "8px", fontSize: "14px" }}
+                        value={ingredient.cost}
                         disabled
-                        style={{ background: "#f8f9fa", color: "#6c757d" }}
                       />
-                      <small style={{ color: "#6c757d", fontSize: "12px" }}>
-                        Auto-calculated: {selectedDish.servings} × ₱{selectedDish.pricePerServing.toFixed(2)}
-                      </small>
+                      <button
+                        className="btn btn-danger"
+                        style={{ padding: "8px" }}
+                        onClick={() => {
+                          const updatedIngredients = selectedDish.ingredients.filter((_, i) => i !== index)
+                          setSelectedDish({ ...selectedDish, ingredients: updatedIngredients })
+                        }}
+                      >
+                        Remove
+                      </button>
                     </div>
-                  </div>
-                )}
-
-                <h3 style={{ color: "#2d5a27", marginBottom: "15px" }}>Ingredients & Costing</h3>
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Ingredient</th>
-                      <th>Quantity</th>
-                      <th>Unit</th>
-                      <th>Cost (₱)</th>
-                      {editMode && <th>Actions</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedDish.ingredients.map((ingredient, index) => (
-                      <tr key={index}>
-                        <td>
-                          {editMode ? (
-                            <input
-                              type="text"
-                              className="form-input"
-                              value={ingredient.name}
-                              onChange={(e) => handleIngredientChange(index, "name", e.target.value)}
-                            />
-                          ) : (
-                            ingredient.name
-                          )}
-                        </td>
-                        <td>
-                          {editMode ? (
-                            <input
-                              type="number"
-                              step="0.001"
-                              className="form-input"
-                              value={ingredient.quantity}
-                              onChange={(e) =>
-                                handleIngredientChange(index, "quantity", Number.parseFloat(e.target.value) || 0)
-                              }
-                            />
-                          ) : (
-                            ingredient.quantity
-                          )}
-                        </td>
-                        <td>
-                          {editMode ? (
-                            <input
-                              type="text"
-                              className="form-input"
-                              value={ingredient.unit}
-                              onChange={(e) => handleIngredientChange(index, "unit", e.target.value)}
-                            />
-                          ) : (
-                            ingredient.unit
-                          )}
-                        </td>
-                        <td>
-                          {editMode ? (
-                            <input
-                              type="number"
-                              step="0.01"
-                              className="form-input"
-                              value={ingredient.cost}
-                              onChange={(e) =>
-                                handleIngredientChange(index, "cost", Number.parseFloat(e.target.value) || 0)
-                              }
-                            />
-                          ) : (
-                            `₱${ingredient.cost.toFixed(2)}`
-                          )}
-                        </td>
-                        {editMode && (
-                          <td>
-                            <button
-                              className="btn btn-danger"
-                              style={{ padding: "4px 8px", fontSize: "12px" }}
-                              onClick={() => {
-                                const updatedIngredients = selectedDish.ingredients.filter((_, i) => i !== index)
-                                const totalCost = updatedIngredients.reduce((sum, ing) => sum + ing.cost, 0)
-                                setSelectedDish({
-                                  ...selectedDish,
-                                  ingredients: updatedIngredients,
-                                  cost: totalCost,
-                                  profit: selectedDish.pricePerServing - totalCost,
-                                })
-                              }}
-                            >
-                              Remove
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr style={{ background: "#f8f9fa", fontWeight: "600" }}>
-                      <td colSpan={editMode ? 3 : 3}>Total Cost</td>
-                      <td>₱{selectedDish.cost.toFixed(2)}</td>
-                      {editMode && <td></td>}
-                    </tr>
-                  </tfoot>
-                </table>
-
-                <div
-                  className="grid grid-4"
-                  style={{ marginTop: "20px", padding: "20px", background: "#f8f9fa", borderRadius: "6px" }}
-                >
-                  <div>
-                    <strong>Recipe Cost:</strong> ₱{selectedDish.cost.toFixed(2)}
-                  </div>
-                  <div>
-                    <strong>Total Selling Price:</strong> ₱{selectedDish.totalSellingPrice.toFixed(2)}
-                  </div>
-                  <div style={{ color: "#28a745" }}>
-                    <strong>Profit:</strong> ₱{selectedDish.profit.toFixed(2)}
-                  </div>
-                  <div style={{ color: "#28a745" }}>
-                    <strong>Profit/Serving:</strong> ₱{selectedDish.profitPerServing.toFixed(2)}
-                  </div>
-                  <div style={{ color: "#28a745" }}>
-                    <strong>Margin:</strong>{" "}
-                    {selectedDish.totalSellingPrice > 0
-                      ? ((selectedDish.profit / selectedDish.totalSellingPrice) * 100).toFixed(1)
-                      : 0}
-                    %
-                  </div>
-                </div>
-
-                <div style={{ marginTop: "30px", display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-                  <button className="btn btn-secondary" onClick={() => setShowModal(false)}>
-                    Cancel
+                  ))}
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => setSelectedDish({
+                      ...selectedDish,
+                      ingredients: [...selectedDish.ingredients, { name: "", quantity: 0, unit: "", cost: 0 }]
+                    })}
+                  >
+                    Add Ingredient
                   </button>
-                  {editMode && (
-                    <button className="btn btn-primary" onClick={handleSaveDish}>
-                      Save Changes
-                    </button>
-                  )}
                 </div>
+              )}
+
+              <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setShowModal(false)}
+                >
+                  Close
+                </button>
+                {editMode && (
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleSaveDish}
+                  >
+                    Save Changes
+                  </button>
+                )}
               </div>
             </div>
-          )}
-        </main>
-      </div>
+          </div>
+        )}
 
-    </AuthGuard>
-  );
+      </main>
+    </div>
+  </AuthGuard>
+)
 }
