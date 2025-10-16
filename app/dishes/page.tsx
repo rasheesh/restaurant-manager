@@ -255,6 +255,11 @@ export default function DishesPage() {
     return servings > 0 ? profit / servings : 0
   }
 
+  const getDishUsage = (dish: Dish): "sale" | "internal" => {
+    // Heuristic: treat Groceries & Others as internal-use items, everything else as for sale
+    return dish.category === "Groceries & Others" ? "internal" : "sale"
+  }
+
   const addIngredientToNewDish = () => {
     setNewDish({
       ...newDish,
@@ -666,6 +671,7 @@ export default function DishesPage() {
                   <th>Status</th>
                   <th>Dish Name</th>
                   <th>Category</th>
+                  <th>Usage</th>
                   <th>Servings</th>
                   <th>Price/Serving</th>
                   <th>Recipe Cost</th>
@@ -713,6 +719,22 @@ export default function DishesPage() {
                         }}
                       >
                         {dish.category}
+                      </span>
+                    </td>
+                    <td>
+                      <span
+                        style={{
+                          display: "inline-block",
+                          padding: "4px 8px",
+                          borderRadius: "12px",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          background: getDishUsage(dish) === "internal" ? "#ffc107" : "#28a745",
+                          color: "white",
+                        }}
+                        title={getDishUsage(dish) === "internal" ? "Internal Use" : "For Sale"}
+                      >
+                        {getDishUsage(dish) === "internal" ? "🟡 Internal" : "🟢 For Sale"}
                       </span>
                     </td>
                     <td>{dish.servings}</td>
