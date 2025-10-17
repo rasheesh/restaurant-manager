@@ -549,11 +549,12 @@ export default function InventoryPage() {
       <div className="main-layout">
         <Sidebar user={user} currentPage="/inventory" />
 
-        <main 
+        <main
           className="main-content"
           style={{
-            marginLeft: sidebarCollapsed ? "calc(60px + 16px)" : "calc(240px + 16px)",
-            width: sidebarCollapsed ? "calc(100% - (60px + 16px))" : "calc(100% - (240px + 16px))",
+            marginLeft: "2vw",
+            marginRight: "2vw",
+            width: "calc(100% - 4vw)",
             transition: "margin-left 260ms ease, width 260ms ease",
           }}
         >

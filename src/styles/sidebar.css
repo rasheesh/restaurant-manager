@@ -8,7 +8,7 @@
  *
  * Key Features:
  * - Sidebar width: 240px (expanded) / 60px (collapsed)
- * - 16px gap between sidebar and main content
+ * - 1vw gap between sidebar and main content
  * - 260ms transition duration for smooth animations
  * - Mobile overlay behavior on screens < 768px
  */
@@ -18,7 +18,7 @@
   --sidebar-width: 240px;
   --sidebar-collapsed-width: 60px;
   --sidebar-current: 240px; /* Default to expanded */
-  --sidebar-gap: 16px;
+  --sidebar-gap: 2vw;
   --transition-duration: 260ms;
 }
 
@@ -77,6 +77,8 @@
 .fp-sidebar.collapsed .hamburger-toggle {
   display: none !important;
 }
+
+
 
 /* ===== NAVIGATION STYLES ===== */
 .nav-menu,
@@ -175,11 +177,13 @@
 .content-wrapper,
 .app-content,
 .app-main {
-  margin-left: calc(var(--sidebar-current) + var(--sidebar-gap));
-  width: calc(100% - (var(--sidebar-current) + var(--sidebar-gap)));
+  margin-left: 1vw;
+  margin-top: 3vw;
+  width: calc(100% - 1vw);
   transition: margin-left var(--transition-duration) ease, width var(--transition-duration) ease;
   box-sizing: border-box;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 /* Mobile responsive */

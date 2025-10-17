@@ -11,7 +11,6 @@
     const collapsedVal = cssVar('--sidebar-collapsed-width') || '60px';
     const current = collapsed ? collapsedVal : expanded;
     root.style.setProperty('--sidebar-current', current);
-    root.style.setProperty('--hamburger-left', `calc(${current} - 8px)`);
     // keep body classes for app code expecting them
     body.classList.toggle('sidebar-collapsed', collapsed);
     body.classList.toggle('fp-sidebar-collapsed', collapsed);

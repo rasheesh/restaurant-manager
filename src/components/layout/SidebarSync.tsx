@@ -13,7 +13,6 @@ export default function SidebarSync() {
 			const collapsedWidth = getComputedStyle(root).getPropertyValue('--sidebar-collapsed-width').trim() || '60px';
 			const currentWidth = collapsed ? collapsedWidth : expandedWidth;
 			root.style.setProperty("--sidebar-current", currentWidth);
-			root.style.setProperty("--hamburger-left", `calc(${currentWidth} - 8px)`);
 
 			// Toggle body classes for text visibility
 			body.classList.toggle("sidebar-collapsed", collapsed);
@@ -46,7 +45,9 @@ export default function SidebarSync() {
 			}
 		}
 
+		// Apply initial state immediately
 		readAndApply()
+
 		window.addEventListener("storage", onStorage)
 		window.addEventListener("sidebar:toggled", onCustom as EventListener)
 

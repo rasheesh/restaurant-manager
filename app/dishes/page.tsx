@@ -34,7 +34,7 @@ interface Ingredient {
 
 const measurementUnits = ["kg", "g", "L", "mL", "pcs", "cups", "tbsp", "tsp", "lbs", "oz"]
 
-const dishCategories = ["Main Course", "Rice", "Dessert", "Drinks", "Appetizer", "Side Dish", "Groceries & Others"]
+const dishCategories = ["MEALS", "EXTRA RICE", "PASTA/PANSIT", "P.SNACKS", "SANDWICH", "DRINKS", "SIOMAI/DUMPLINGS", "GROCERIES", "PASTRIES", "OTHERS", "BANANA", "KAKANIN", "UTENSILS"]
 
 const unitConversions: { [key: string]: { [key: string]: number } } = {
   // Weight conversions (base: grams)
@@ -126,7 +126,7 @@ export default function DishesPage() {
     profit: 0,
     profitPerServing: 0,
     ingredients: [],
-    category: "Main Course",
+    category: "MEALS",
     status: "available",
   })
   const router = useRouter()
@@ -460,7 +460,7 @@ export default function DishesPage() {
       profit: 0,
       profitPerServing: 0,
       ingredients: [],
-      category: "Main Course",
+      category: "MEALS",
       status: "available",
     })
     setNewDishImageUrl("")
@@ -601,6 +601,12 @@ export default function DishesPage() {
 
         <main
           className="main-content"
+          style={{
+            marginLeft: "2vw",
+            marginRight: "2vw",
+            width: "calc(100% - 4vw)",
+            transition: "margin-left 260ms ease, width 260ms ease",
+          }}
         >
           <div className="top-bar">
             <h1 style={{ margin: 0, fontSize: "1.8rem", color: "#2d5a27" }}>Dishes & Item Management</h1>

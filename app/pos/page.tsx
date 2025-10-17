@@ -725,8 +725,9 @@ export default function POSPage() {
       <div className="main-layout">
         <Sidebar user={user} currentPage="/pos" />
 
-        <main 
+        <main
           className="main-content"
+          style={{ marginLeft: "2vw", marginRight: "2vw" }}
         >
           <SpinnerOverlay />
           <div className="top-bar">

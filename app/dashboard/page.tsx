@@ -173,6 +173,10 @@ export default function Dashboard() {
           style={{
             minHeight: "100vh",
             background: "#f8f9fa",
+            marginLeft: "2vw",
+            marginRight: "2vw",
+            width: "calc(100% - 4vw)",
+            transition: "margin-left 260ms ease, width 260ms ease",
           }}
         >
           {/* Top Bar */}

@@ -459,11 +459,11 @@
 /* Responsive Design - Tablet First */
 @media (max-width: 1024px) {
   .sidebar {
-    width: 250px;
+    width: var(--sidebar-current);
   }
 
   .main-content {
-    margin-left: 250px;
+    margin-left: calc(var(--sidebar-current) + var(--sidebar-gap));
   }
 
   .grid-4 {
