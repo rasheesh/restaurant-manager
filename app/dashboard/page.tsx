@@ -42,6 +42,7 @@ export default function Dashboard() {
   const [summary, setSummary] = useState<any>({ subtotal: 0, discount: 0, tax: 0, total: 0, orders: 0 })
   const [topItems, setTopItems] = useState<any[]>([])
   const [lowStock, setLowStock] = useState<any[]>([])
+  const [dbConnected, setDbConnected] = useState<boolean | null>(null)
   // initialize from persisted value so page follows Sidebar's state
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
     try {
@@ -62,23 +63,44 @@ export default function Dashboard() {
     const parsed = JSON.parse(userData)
     setUser(parsed)
     loadCreditTransactions()
-    loadRecentActivities()
-    // Load reports and low stock
+    // Use separate routes to populate dashboard (reports, orders, inventory)
     const branchNameToId: any = { exxa: 1, tera: 2, cnx: 3, all: null }
     const branchId = branchNameToId[parsed.branch]
+    // Kick off loaders and DB health check
+    checkDbConnection()
+    loadReportsForToday(branchId)
+    loadInventory(branchId)
+    loadOrdersForToday(branchId)
+  }, [router])
+
+  // simple DB health check - uses existing db-test route
+  const checkDbConnection = () => {
+    fetch('/api/db-test')
+      .then(r => r.json())
+      .then((d) => {
+        if (d?.ok) setDbConnected(true)
+        else setDbConnected(false)
+      })
+      .catch(() => setDbConnected(false))
+  }
+
+  const loadReportsForToday = (branchId: number | null) => {
     const today = new Date().toISOString().slice(0, 10)
-    const reportsUrl = branchId == null
+    const url = branchId == null
       ? `/api/reports?from=${today}&to=${today}`
       : `/api/reports?from=${today}&to=${today}&branch_id=${branchId}`
-    fetch(reportsUrl)
+    fetch(url)
       .then(r => r.json())
       .then((data) => {
         if (data?.summary) setSummary(data.summary)
         if (Array.isArray(data?.topItems)) setTopItems(data.topItems)
       })
-      .catch(() => { })
-    const invUrl = branchId == null ? `/api/inventory` : `/api/inventory?branch_id=${branchId}`
-    fetch(invUrl)
+      .catch(() => { /* keep existing state on error */ })
+  }
+
+  const loadInventory = (branchId: number | null) => {
+    const url = branchId == null ? `/api/inventory` : `/api/inventory?branch_id=${branchId}`
+    fetch(url)
       .then(r => r.json())
       .then((rows) => {
         if (Array.isArray(rows)) {
@@ -87,7 +109,48 @@ export default function Dashboard() {
         }
       })
       .catch(() => { })
-  }, [router])
+  }
+
+  const loadOrdersForToday = (branchId: number | null) => {
+    const today = new Date().toISOString().slice(0, 10)
+    const url = branchId == null ? `/api/orders?from=${today}&to=${today}` : `/api/orders?from=${today}&to=${today}&branch_id=${branchId}`
+    fetch(url)
+      .then(r => r.json())
+      .then((rows) => {
+        if (!Array.isArray(rows)) { setRecentActivities([]); return }
+        const activities = rows.slice(0, 10).map((o: any) => {
+          // Prefer server-supplied local timestamp when available
+          let timestampIso: string
+          if (o.created_at_local) {
+            // created_at_local is like 'YYYY-MM-DDTHH:mm:ss' (no timezone) and should be parsed as local
+            try { timestampIso = new Date(o.created_at_local).toISOString() } catch { timestampIso = new Date().toISOString() }
+          } else if (typeof o.created_at_ms === 'number') {
+            timestampIso = new Date(Number(o.created_at_ms)).toISOString()
+          } else {
+            const raw = o.created_at
+            if (!raw) timestampIso = new Date().toISOString()
+            else if (typeof raw === 'string') {
+              const isoLocal = raw.replace(' ', 'T')
+              timestampIso = new Date(isoLocal).toISOString()
+            } else {
+              try { timestampIso = new Date(raw).toISOString() } catch { timestampIso = new Date().toISOString() }
+            }
+          }
+
+          // Use epoch ms if available so client Date arithmetic is unambiguous
+          const ts = typeof o.created_at_ms === 'number'
+            ? Number(o.created_at_ms)
+            : (o.created_at_local ? new Date(o.created_at_local).getTime() : Date.now())
+          return {
+            id: `ORD-${o.id}`,
+            timestamp: ts,
+            description: `Order #${String(o.order_number || '').padStart(4, '0')} - ₱${Number(o.total || 0).toFixed(2)}`,
+          }
+        })
+        setRecentActivities(activities)
+      })
+      .catch(() => setRecentActivities([]))
+  }
 
   const loadCreditTransactions = () => {
     const storedTransactions = JSON.parse(localStorage.getItem("creditTransactions") || "[]")
@@ -110,22 +173,13 @@ export default function Dashboard() {
   }
 
   const loadRecentActivities = () => {
-    const today = new Date().toISOString().slice(0, 10)
+    // Refresh the individual loaders so everything (reports/topItems/inventory/orders) is kept in sync
+    if (!user) return
     const branchNameToId: any = { exxa: 1, tera: 2, cnx: 3, all: null }
     const branchId = user ? branchNameToId[(user as any).branch] : null
-    const url = branchId == null ? `/api/orders?from=${today}&to=${today}` : `/api/orders?from=${today}&to=${today}&branch_id=${branchId}`
-    fetch(url)
-      .then(r => r.json())
-      .then((rows) => {
-        if (!Array.isArray(rows)) { setRecentActivities([]); return }
-        const activities = rows.slice(0, 10).map((o: any) => ({
-          id: `ORD-${o.id}`,
-          timestamp: o.created_at || new Date().toISOString(),
-          description: `Order #${String(o.order_number || '').padStart(4, '0')} - ₱${Number(o.total || 0).toFixed(2)}`,
-        }))
-        setRecentActivities(activities)
-      })
-      .catch(() => setRecentActivities([]))
+    loadReportsForToday(branchId)
+    loadInventory(branchId)
+    loadOrdersForToday(branchId)
   }
 
   const getTotalCreditBalance = () => {
@@ -194,13 +248,19 @@ export default function Dashboard() {
               >
                 💳 Credit Management
               </button>
-              <div style={{ color: "#6c757d" }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}> 
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: 10, background: dbConnected === null ? '#6c757d' : dbConnected ? '#28a745' : '#dc3545' }} />
+                  <div style={{ color: '#6c757d', fontSize: 13 }}>{dbConnected === null ? 'DB: checking' : dbConnected ? 'DB: connected' : 'DB: disconnected'}</div>
+                </div>
+                <div style={{ color: "#6c757d" }}>
                 {new Date().toLocaleDateString("en-PH", {
                   weekday: "long",
                   year: "numeric",
                   month: "long",
                   day: "numeric",
                 })}
+                </div>
               </div>
             </div>
           </div>
@@ -364,6 +424,14 @@ export default function Dashboard() {
                       <span>{activity.description}</span>
                       <span style={{ color: "#6c757d", fontSize: "0.9rem" }}>
                         {(() => {
+                          // Debug: show raw timestamp, parsed date, and epoch ms
+                          try {
+                            const rawTs = activity.timestamp
+                            const parsed = new Date(rawTs)
+                            console.debug('recent activity time debug', { rawTs, parsed, parsed_ms: parsed.getTime(), now_ms: Date.now() })
+                          } catch (err) {
+                            console.debug('recent activity debug parse error', err, activity.timestamp)
+                          }
                           const activityTime = new Date(activity.timestamp)
                           const now = new Date()
                           const diffInMinutes = Math.floor((now.getTime() - activityTime.getTime()) / (1000 * 60))
@@ -390,7 +458,8 @@ export default function Dashboard() {
           isOpen={showCreditModal}
           onClose={() => {
             setShowCreditModal(false)
-            loadCreditTransactions() // Reload data when modal closes
+            loadCreditTransactions() // Reload credit transactions when modal closes
+            loadRecentActivities() // Also refresh recent activities
           }}
           user={user}
         />

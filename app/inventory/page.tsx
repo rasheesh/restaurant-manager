@@ -24,6 +24,7 @@ interface InventoryItem {
   supplier?: string
   contentPerPiece?: number
   contentUnit?: string
+  usage?: "sale" | "internal"
 }
 
 
@@ -36,6 +37,7 @@ interface NewInventoryItem {
   supplier: string
   contentPerPiece: number
   contentUnit: string
+  usage: "sale" | "internal"
 }
 
 const measurementUnits = ["kg", "L", "g", "ml", "pcs"]
@@ -67,6 +69,7 @@ export default function InventoryPage() {
     supplier: "",
     contentPerPiece: 0,
     contentUnit: "ml",
+    usage: "sale",
   })
 
   const router = useRouter()
@@ -108,6 +111,7 @@ export default function InventoryPage() {
             reorderLevel: typeof r.min_threshold === 'number' ? r.min_threshold : Number(r.min_threshold),
             lastUpdated: r.updated_at || r.created_at || new Date().toISOString().split('T')[0],
             dateAdded: r.created_at || new Date().toISOString().split('T')[0],
+            usage: r.usage || 'sale',
           }))
           setInventory(mapped)
         }
@@ -243,6 +247,7 @@ export default function InventoryPage() {
           quantity: newItem.qtyInStock,
           unit: newItem.unit,
           min_threshold: newItem.reorderLevel,
+          usage: newItem.usage,
         })
       })
 
@@ -258,6 +263,7 @@ export default function InventoryPage() {
         reorderLevel: Number(r.min_threshold || 0),
         lastUpdated: r.updated_at || r.created_at || new Date().toISOString().split('T')[0],
         dateAdded: r.created_at || new Date().toISOString().split('T')[0],
+        usage: r.usage || 'sale',
       }))
       setInventory(mapped)
       setShowAddModal(false)
@@ -274,6 +280,7 @@ export default function InventoryPage() {
       supplier: "",
       contentPerPiece: 0,
       contentUnit: "ml",
+      usage: "sale",
     })
   }
 
@@ -651,6 +658,7 @@ export default function InventoryPage() {
                   <th>Total Value</th>
                   <th>Reorder Level</th>
                   <th>Content Info</th>
+                  <th>Usage</th>
                   <th>Status</th>
                   <th>Date Added</th>
                   <th>Last Updated</th>
@@ -683,6 +691,20 @@ export default function InventoryPage() {
                         ) : (
                           "-"
                         )}
+                      </td>
+                      <td>
+                        <span
+                          style={{
+                            padding: "4px 8px",
+                            borderRadius: "4px",
+                            fontSize: "12px",
+                            fontWeight: "600",
+                            background: (item.usage || "sale") === "internal" ? "#ffc107" : "#28a745",
+                            color: "white",
+                          }}
+                        >
+                          {(item.usage || "sale") === "internal" ? "🟡 Internal" : "🟢 For Sale"}
+                        </span>
                       </td>
                       <td>
                         <span
@@ -1024,6 +1046,22 @@ export default function InventoryPage() {
                       onChange={(e) => setNewItem({ ...newItem, supplier: e.target.value })}
                       placeholder="Enter supplier name"
                     />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Usage Type *</label>
+                    <select
+                      className="form-select"
+                      style={{ width: "100%", padding: "12px", fontSize: "14px" }}
+                      value={newItem.usage}
+                      onChange={(e) => setNewItem({ ...newItem, usage: e.target.value as "sale" | "internal" })}
+                    >
+                      <option value="sale">🟢 For Sale</option>
+                      <option value="internal">🟡 Internal Use</option>
+                    </select>
+                    <small style={{ color: "#6c757d", fontSize: "12px", marginTop: "4px", display: "block" }}>
+                      For Sale: Items available for customer purchase | Internal Use: Items for staff/kitchen use only
+                    </small>
                   </div>
                 </div>
 

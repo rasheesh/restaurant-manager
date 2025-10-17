@@ -186,7 +186,8 @@ export async function GET(req: Request) {
 
     const [rows]: any = await conn.query(
       `SELECT o.id, o.order_number, o.total, o.created_at, o.branch_id, o.user_id, o.payment_method,
-              COUNT(oi.id) AS items_count
+              COUNT(oi.id) AS items_count,
+              (UNIX_TIMESTAMP(o.created_at) * 1000) AS created_at_ms
          FROM orders o
          LEFT JOIN order_items oi ON oi.order_id = o.id
         WHERE 1=1
@@ -196,7 +197,28 @@ export async function GET(req: Request) {
         ORDER BY o.created_at DESC` ,
       params.length ? params : undefined as any
     )
-    return NextResponse.json(rows)
+    // Use server-provided epoch ms as the canonical instant; also provide a local-formatted string for convenience
+    const enhanced = (rows || []).map((r: any) => {
+      const created_at_ms = r.created_at_ms != null ? Number(r.created_at_ms) : (r.created_at ? new Date(r.created_at).getTime() : null)
+      let created_at_local = null
+      if (created_at_ms) {
+        const dt = new Date(created_at_ms)
+        const pad = (n: number) => String(n).padStart(2, '0')
+        const YYYY = dt.getFullYear()
+        const MM = pad(dt.getMonth() + 1)
+        const DD = pad(dt.getDate())
+        const hh = pad(dt.getHours())
+        const mm = pad(dt.getMinutes())
+        const ss = pad(dt.getSeconds())
+        created_at_local = `${YYYY}-${MM}-${DD}T${hh}:${mm}:${ss}`
+      }
+      return {
+        ...r,
+        created_at_ms,
+        created_at_local,
+      }
+    })
+    return NextResponse.json(enhanced)
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Failed to load orders' }, { status: 500 })
   } finally {

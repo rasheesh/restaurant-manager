@@ -9,7 +9,11 @@ export async function GET(req: Request) {
     const to = searchParams.get('to')
     const branchId = searchParams.get('branch_id')
 
-    const dateFilter = from && to ? 'AND o.created_at BETWEEN CONCAT(?, " 00:00:00") AND CONCAT(?, " 23:59:59")' : ''
+  // Convert stored UTC created_at to the session/system timezone so date filters match local dates
+  // If session.time_zone is not available, fall back to raw created_at
+  const dateFilter = from && to
+    ? 'AND (CASE WHEN @@session.time_zone IS NULL OR @@session.time_zone = \"SYSTEM\" THEN o.created_at ELSE CONVERT_TZ(o.created_at, \'+00:00\', @@session.time_zone) END) BETWEEN CONCAT(?, " 00:00:00") AND CONCAT(?, " 23:59:59")'
+    : ''
     const params: any[] = []
     if (branchId) params.push(Number(branchId))
     if (from && to) params.push(from, to)
@@ -36,7 +40,7 @@ export async function GET(req: Request) {
         WHERE 1=1
           ${branchId ? 'AND o.branch_id = ?' : ''}
           ${dateFilter}
-        GROUP BY oi.item_id, name
+        GROUP BY oi.item_id, oi.item_name_snapshot, i.name
         ORDER BY revenue DESC
         LIMIT 10`,
       params.length ? params : undefined as any
