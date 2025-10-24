@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react"
+import { Settings } from "lucide-react"
 import AuthGuard from "../../../components/auth/auth-guard"
 import Sidebar from "../../../components/layout/new-sidebar"
 
@@ -99,7 +100,10 @@ export default function SystemSettings() {
           }}
         >
           <div className="page-header">
-            <h1>⚙️ System Settings</h1>
+            <h1 className="flex items-center gap-2">
+              <Settings size={24} />
+              System Settings
+            </h1>
             <p>Configure system-wide settings and preferences</p>
           </div>
 

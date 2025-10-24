@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { CreditCard, AlertTriangle, BarChart3 } from "lucide-react"
 import Sidebar from "../../components/layout/new-sidebar"
 import AuthGuard from "../../components/auth/auth-guard"
 import CreditManagementModal from "../../components/credit-management-modal"
@@ -246,7 +247,8 @@ export default function Dashboard() {
                   setTimeout(() => loadCreditTransactions(), 100)
                 }}
               >
-                💳 Credit Management
+                <CreditCard size={16} className="inline mr-1" />
+                Credit Management
               </button>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}> 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -290,7 +292,10 @@ export default function Dashboard() {
           {totalCreditBalance > 0 && (
             <div className="card mb-20">
               <div className="card-header">
-                <h3 className="card-title">💳 Credit Status Alert</h3>
+                <h3 className="card-title flex items-center gap-2">
+                  <CreditCard size={20} />
+                  Credit Status Alert
+                </h3>
               </div>
               <div style={{ background: "#fff3cd", padding: "15px", borderRadius: "6px", border: "1px solid #ffeaa7" }}>
                 <p style={{ margin: "0 0 10px 0", color: "#856404" }}>
@@ -313,7 +318,10 @@ export default function Dashboard() {
           {/* Low Stock Alerts */}
           <div className="card mb-20">
             <div className="card-header">
-              <h3 className="card-title">⚠️ Low Stock Alerts</h3>
+              <h3 className="card-title flex items-center gap-2">
+                <AlertTriangle size={20} />
+                Low Stock Alerts
+              </h3>
             </div>
             <div style={{ background: "#fff3cd", padding: "15px", borderRadius: "6px", border: "1px solid #ffeaa7" }}>
               {lowStock.length === 0 ? (
@@ -331,7 +339,10 @@ export default function Dashboard() {
           {/* Top Dishes Chart */}
           <div className="card">
             <div className="card-header">
-              <h3 className="card-title">📊 Top Dishes Sold Today</h3>
+              <h3 className="card-title flex items-center gap-2">
+                <BarChart3 size={20} />
+                Top Dishes Sold Today
+              </h3>
             </div>
             <div className="grid grid-2">
               <div>

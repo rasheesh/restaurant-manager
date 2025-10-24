@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { AlertTriangle } from "lucide-react"
 import Sidebar from "../../components/layout/new-sidebar"
 import AuthGuard from "../../components/auth/auth-guard"
 import RoleChecker from "../../components/auth/role-checker"
@@ -1138,7 +1139,12 @@ export default function ReportsPage() {
                                   }}
                                 >
                                   {transaction.status === "paid" && "✅ Paid"}
-                                  {transaction.status === "partial" && "⚠️ Partial"}
+                                  {transaction.status === "partial" && (
+                                    <span className="flex items-center gap-1">
+                                      <AlertTriangle size={14} />
+                                      Partial
+                                    </span>
+                                  )}
                                   {transaction.status === "unpaid" && "❌ Unpaid"}
                                 </span>
                               </td>

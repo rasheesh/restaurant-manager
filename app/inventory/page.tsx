@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { BarChart3, AlertTriangle, TrendingUp } from "lucide-react"
 import Sidebar from "../../components/layout/new-sidebar"
 import AuthGuard from "../../components/auth/auth-guard"
 
@@ -369,7 +370,7 @@ export default function InventoryPage() {
       
       // Show alert if there are mismatches
       if (mismatches.length > 0) {
-        alert(`⚠️ Audit Alert: ${mismatches.length} inventory mismatches detected! Please review the audit results.`)
+        alert(`Audit Alert: ${mismatches.length} inventory mismatches detected! Please review the audit results.`)
       } else {
         alert(`✅ Audit Complete: No significant mismatches found for the ${period} period.`)
       }
@@ -571,7 +572,8 @@ export default function InventoryPage() {
             </h1>
             <div style={{ display: "flex", gap: "10px" }}>
               <button className="btn btn-secondary" onClick={() => setShowAuditModal(true)}>
-                📊 Audit
+                <BarChart3 size={16} className="inline mr-1" />
+                Audit
               </button>
               <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
                 + Add Item
@@ -601,7 +603,10 @@ export default function InventoryPage() {
           {lowStockItems.length > 0 && (
             <div className="card mb-20">
               <div className="card-header">
-                <h3 className="card-title">⚠️ Low Stock Alerts</h3>
+                <h3 className="card-title flex items-center gap-2">
+                  <AlertTriangle size={20} />
+                  Low Stock Alerts
+                </h3>
               </div>
               <div style={{ background: "#fff3cd", padding: "15px", borderRadius: "6px", border: "1px solid #ffeaa7" }}>
                 {lowStockItems.map((item, index) => (
@@ -1161,7 +1166,10 @@ export default function InventoryPage() {
                     marginBottom: "20px",
                   }}
                 >
-                  <h2 style={{ margin: 0, color: "#2d5a27" }}>📊 Inventory Audit</h2>
+                  <h2 style={{ margin: 0, color: "#2d5a27" }} className="flex items-center gap-2">
+                    <BarChart3 size={24} />
+                    Inventory Audit
+                  </h2>
                   <button
                     style={{
                       background: "none",
@@ -1206,7 +1214,8 @@ export default function InventoryPage() {
                         color: activeAuditTab === "daily" ? "white" : "#6c757d"
                       }}
                     >
-                      📊 Daily Audit
+                      <BarChart3 size={16} className="inline mr-1" />
+                      Daily Audit
                     </button>
                   </div>
                 </div>
@@ -1235,14 +1244,16 @@ export default function InventoryPage() {
                         onClick={() => setSelectedAuditPeriod("quarterly")}
                         style={{ padding: "12px", fontSize: "14px" }}
                       >
-                        📊 Quarterly Audit
+                        <BarChart3 size={16} className="inline mr-1" />
+                        Quarterly Audit
                       </button>
                       <button
                         className={`btn ${selectedAuditPeriod === "yearly" ? "btn-primary" : "btn-secondary"}`}
                         onClick={() => setSelectedAuditPeriod("yearly")}
                         style={{ padding: "12px", fontSize: "14px" }}
                       >
-                        📈 Yearly Audit
+                        <TrendingUp size={16} className="inline mr-1" />
+                        Yearly Audit
                       </button>
                     </div>
 
@@ -1287,7 +1298,7 @@ export default function InventoryPage() {
                         <li><strong>Actual Quantity:</strong> Physical count - click to edit with your actual count</li>
                         <li><strong>Variance:</strong> Difference between actual count and system record (Actual - Expected)</li>
                         <li><strong>Status:</strong> Updates based on variance percentage (OK, Low, Medium, High)</li>
-                        <li><strong>⚠️ Note:</strong> Only supervisors and admins can edit actual quantities</li>
+                        <li><strong>Note:</strong> Only supervisors and admins can edit actual quantities</li>
                       </ul>
                     </div>
 
@@ -1320,7 +1331,8 @@ export default function InventoryPage() {
                       <h3 style={{ margin: 0, color: "#2d5a27" }}>Audit Results</h3>
                       <div style={{ display: "flex", gap: "15px", fontSize: "14px" }}>
                         <span style={{ color: auditMismatches.length > 0 ? "#dc3545" : "#28a745", fontWeight: "600" }}>
-                          ⚠️ Mismatches: {auditMismatches.length}
+                          <AlertTriangle size={16} className="inline mr-1" />
+                          Mismatches: {auditMismatches.length}
                         </span>
                         <span style={{ color: "#6c757d" }}>
                           Total Items: {auditResults.length}
@@ -1337,7 +1349,10 @@ export default function InventoryPage() {
                         padding: "15px", 
                         marginBottom: "20px" 
                       }}>
-                        <h4 style={{ margin: "0 0 10px 0", color: "#721c24" }}>⚠️ Reconciliation Mismatches Detected</h4>
+                        <h4 style={{ margin: "0 0 10px 0", color: "#721c24" }} className="flex items-center gap-2">
+                          <AlertTriangle size={20} />
+                          Reconciliation Mismatches Detected
+                        </h4>
                         <p style={{ margin: 0, color: "#721c24", fontSize: "14px" }}>
                           {auditMismatches.length} items have significant variances that require attention. 
                           Please review the detailed results below and investigate the causes.
@@ -1499,7 +1514,8 @@ export default function InventoryPage() {
                       <h3 style={{ margin: 0, color: "#2d5a27" }}>Daily Audit Results</h3>
                       <div style={{ display: "flex", gap: "15px", fontSize: "14px" }}>
                         <span style={{ color: "#0066cc", fontWeight: "600" }}>
-                          📊 Total Items: {dailyAuditResults.length}
+                          <BarChart3 size={16} className="inline mr-1" />
+                          Total Items: {dailyAuditResults.length}
                         </span>
                         <span style={{ color: "#6c757d" }}>
                           💰 Total Impact: ₱{dailyAuditResults.reduce((sum, item) => sum + item.financialImpact, 0).toFixed(2)}

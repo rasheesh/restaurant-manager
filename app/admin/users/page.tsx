@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { Users } from "lucide-react"
 import AuthGuard from "../../../components/auth/auth-guard"
 import Sidebar from "../../../components/layout/new-sidebar"
 
@@ -268,7 +269,10 @@ export default function UserManagement() {
           }}
         >
           <div className="page-header">
-            <h1>👥 User Management</h1>
+            <h1 className="flex items-center gap-2">
+              <Users size={24} />
+              User Management
+            </h1>
             <p>Manage user accounts and permissions</p>
           </div>
 

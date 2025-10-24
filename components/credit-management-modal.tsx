@@ -206,7 +206,17 @@ export default function CreditManagementModal({ isOpen, onClose, user }: CreditM
                             color: transaction.status === "partial" ? "#856404" : "#721c24",
                           }}
                         >
-                          {transaction.status === "partial" ? "⚠️ Partial" : "❌ Unpaid"}
+                          {transaction.status === "partial" ? (
+                            <span className="flex items-center gap-1">
+                              <AlertTriangle size={14} />
+                              Partial
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1">
+                              <XCircle size={14} />
+                              Unpaid
+                            </span>
+                          )}
                         </span>
                       </td>
                       <td>
@@ -296,7 +306,17 @@ export default function CreditManagementModal({ isOpen, onClose, user }: CreditM
                     </p>
                     <p style={{ margin: 0, color: "#0c5460", fontWeight: "600" }}>
                       Status after payment:{" "}
-                      {paymentAmount >= selectedTransaction.remainingBalance ? "FULLY PAID ✅" : "PARTIAL PAYMENT ⚠️"}
+                      {paymentAmount >= selectedTransaction.remainingBalance ? (
+                        <span className="flex items-center gap-1">
+                          <CheckCircle size={14} />
+                          FULLY PAID
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1">
+                          <AlertTriangle size={14} />
+                          PARTIAL PAYMENT
+                        </span>
+                      )}
                     </p>
                   </div>
                 )}

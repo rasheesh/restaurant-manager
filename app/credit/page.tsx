@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { AlertTriangle, RefreshCw, CheckCircle, XCircle } from "lucide-react"
 import Sidebar from "../../components/layout/new-sidebar"
 import AuthGuard from "../../components/auth/auth-guard"
 
@@ -284,7 +285,8 @@ export default function CreditPage() {
                 style={{ padding: "6px 12px", fontSize: "14px" }}
                 onClick={loadCreditTransactions}
               >
-                🔄 Refresh
+                <RefreshCw size={16} className="inline mr-1" />
+                Refresh
               </button>
               <span style={{ color: "#6c757d" }}>Total Outstanding: ₱{totalCreditBalance.toFixed(2)}</span>
             </div>
@@ -410,9 +412,24 @@ export default function CreditPage() {
                                     : "#721c24",
                             }}
                           >
-                            {transaction.status === "paid" && "✅ Paid"}
-                            {transaction.status === "partial" && "⚠️ Partial"}
-                            {transaction.status === "unpaid" && "❌ Unpaid"}
+                            {transaction.status === "paid" && (
+                              <span className="flex items-center gap-1">
+                                <CheckCircle size={14} />
+                                Paid
+                              </span>
+                            )}
+                            {transaction.status === "partial" && (
+                              <span className="flex items-center gap-1">
+                                <AlertTriangle size={14} />
+                                Partial
+                              </span>
+                            )}
+                            {transaction.status === "unpaid" && (
+                              <span className="flex items-center gap-1">
+                                <XCircle size={14} />
+                                Unpaid
+                              </span>
+                            )}
                           </span>
                         </td>
                         <td>

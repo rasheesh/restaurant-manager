@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useToast } from "../../hooks/use-toast"
+import { UtensilsCrossed, Printer } from "lucide-react"
 import Sidebar from "../../components/layout/new-sidebar"
 import AuthGuard from "../../components/auth/auth-guard"
 
@@ -774,7 +775,8 @@ export default function POSPage() {
                     className="px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition-colors"
                     onClick={openComboModal}
                   >
-                    🍽️ Create Combo Meal
+                    <UtensilsCrossed size={16} className="inline mr-1" />
+                    Create Combo Meal
                   </button>
                 </div>
               </div>
@@ -1551,7 +1553,8 @@ export default function POSPage() {
                     style={{ minWidth: "120px", padding: "12px 20px" }}
                     onClick={printReceipt}
                   >
-                    🖨️ Print Receipt
+                    <Printer size={16} className="inline mr-1" />
+                    Print Receipt
                   </button>
                 </div>
               </div>
