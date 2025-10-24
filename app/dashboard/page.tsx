@@ -14,6 +14,7 @@ interface User {
 
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null)
+  const [creditTransactions, setCreditTransactions] = useState<any[]>([])
   const [recentActivities, setRecentActivities] = useState<any[]>([])
   const [summary, setSummary] = useState<any>({ subtotal: 0, discount: 0, tax: 0, total: 0, orders: 0 })
   const [topItems, setTopItems] = useState<any[]>([])
@@ -38,6 +39,7 @@ export default function Dashboard() {
     }
     const parsed = JSON.parse(userData)
     setUser(parsed)
+    loadCreditTransactions()
     // Use separate routes to populate dashboard (reports, orders, inventory)
     const branchNameToId: any = { exxa: 1, tera: 2, cnx: 3, all: null }
     const branchId = branchNameToId[parsed.branch]
@@ -127,6 +129,24 @@ export default function Dashboard() {
       .catch(() => setRecentActivities([]))
   }
 
+  const loadCreditTransactions = () => {
+    const storedTransactions = JSON.parse(localStorage.getItem("creditTransactions") || "[]")
+    const processedTransactions = storedTransactions.map((transaction: any) => {
+      const amountPaid = transaction.payments?.reduce((sum: number, payment: any) => sum + payment.amount, 0) || 0
+      const remainingBalance = transaction.amount - amountPaid
+      let status = "unpaid"
+      if (amountPaid > 0 && amountPaid < transaction.amount) status = "partial"
+      if (amountPaid >= transaction.amount) status = "paid"
+      return {
+        ...transaction,
+        amountPaid,
+        remainingBalance,
+        status
+      }
+    })
+    setCreditTransactions(processedTransactions)
+  }
+
   const loadRecentActivities = () => {
     // Refresh the individual loaders so everything (reports/topItems/inventory/orders) is kept in sync
     if (!user) return
@@ -135,6 +155,12 @@ export default function Dashboard() {
     loadReportsForToday(branchId)
     loadInventory(branchId)
     loadOrdersForToday(branchId)
+  }
+
+  const getTotalCreditBalance = () => {
+    return creditTransactions
+      .filter((transaction) => transaction.status !== "paid")
+      .reduce((sum, transaction) => sum + transaction.remainingBalance, 0)
   }
 
   // Keep localStorage in sync with sidebar state
@@ -149,6 +175,7 @@ export default function Dashboard() {
   }
 
   const branchName = user.branch === "exxa" ? "EXXA" : user.branch === "tera" ? "TERA" : user.branch === "cnx" ? "CNX" : "All Branches"
+  const totalCreditBalance = getTotalCreditBalance()
 
   return (
     <AuthGuard allowedRoles={["admin"]}>
@@ -214,6 +241,12 @@ export default function Dashboard() {
             <div className="summary-card">
               <div className="summary-value">{Number(summary.orders || 0).toLocaleString()}</div>
               <div className="summary-label">Orders</div>
+            </div>
+            <div className="summary-card">
+              <div className="summary-value" style={{ color: totalCreditBalance > 0 ? "#dc3545" : "#28a745" }}>
+                ₱{totalCreditBalance.toLocaleString()}
+              </div>
+              <div className="summary-label">Outstanding Credit</div>
             </div>
           </div>
 
