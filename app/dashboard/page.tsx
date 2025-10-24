@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { CreditCard, AlertTriangle, BarChart3 } from "lucide-react"
+import { AlertTriangle, BarChart3 } from "lucide-react"
 import Sidebar from "../../components/layout/new-sidebar"
 import AuthGuard from "../../components/auth/auth-guard"
-import CreditManagementModal from "../../components/credit-management-modal"
 
 interface User {
   email: string
@@ -13,32 +12,8 @@ interface User {
   role: string
 }
 
-interface CreditTransaction {
-  id: number
-  orderNumber: number
-  customerName: string
-  customerContact: string
-  amount: number
-  amountPaid: number
-  remainingBalance: number
-  timestamp: Date
-  status: "unpaid" | "partial" | "paid"
-  cashier: string
-  payments: Payment[]
-}
-
-interface Payment {
-  id: number
-  amount: number
-  timestamp: Date
-  cashier: string
-  method: string
-}
-
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null)
-  const [showCreditModal, setShowCreditModal] = useState(false)
-  const [creditTransactions, setCreditTransactions] = useState<CreditTransaction[]>([])
   const [recentActivities, setRecentActivities] = useState<any[]>([])
   const [summary, setSummary] = useState<any>({ subtotal: 0, discount: 0, tax: 0, total: 0, orders: 0 })
   const [topItems, setTopItems] = useState<any[]>([])
@@ -63,7 +38,6 @@ export default function Dashboard() {
     }
     const parsed = JSON.parse(userData)
     setUser(parsed)
-    loadCreditTransactions()
     // Use separate routes to populate dashboard (reports, orders, inventory)
     const branchNameToId: any = { exxa: 1, tera: 2, cnx: 3, all: null }
     const branchId = branchNameToId[parsed.branch]
@@ -153,26 +127,6 @@ export default function Dashboard() {
       .catch(() => setRecentActivities([]))
   }
 
-  const loadCreditTransactions = () => {
-    const storedTransactions = JSON.parse(localStorage.getItem("creditTransactions") || "[]")
-    const processedTransactions = storedTransactions.map((transaction: any) => ({
-      ...transaction,
-      timestamp: new Date(transaction.timestamp),
-      amountPaid: transaction.payments?.reduce((sum: number, payment: Payment) => sum + payment.amount, 0) || 0,
-      remainingBalance:
-        transaction.amount -
-        (transaction.payments?.reduce((sum: number, payment: Payment) => sum + payment.amount, 0) || 0),
-      status: (() => {
-        const paid = transaction.payments?.reduce((sum: number, payment: Payment) => sum + payment.amount, 0) || 0
-        if (paid === 0) return "unpaid"
-        if (paid >= transaction.amount) return "paid"
-        return "partial"
-      })(),
-      payments: transaction.payments || [],
-    }))
-    setCreditTransactions(processedTransactions)
-  }
-
   const loadRecentActivities = () => {
     // Refresh the individual loaders so everything (reports/topItems/inventory/orders) is kept in sync
     if (!user) return
@@ -181,12 +135,6 @@ export default function Dashboard() {
     loadReportsForToday(branchId)
     loadInventory(branchId)
     loadOrdersForToday(branchId)
-  }
-
-  const getTotalCreditBalance = () => {
-    return creditTransactions
-      .filter((transaction) => transaction.status !== "paid")
-      .reduce((sum, transaction) => sum + transaction.remainingBalance, 0)
   }
 
   // Keep localStorage in sync with sidebar state
@@ -201,8 +149,6 @@ export default function Dashboard() {
   }
 
   const branchName = user.branch === "exxa" ? "EXXA" : user.branch === "tera" ? "TERA" : user.branch === "cnx" ? "CNX" : "All Branches"
-  const totalCreditBalance = getTotalCreditBalance()
-  const outstandingCredits = creditTransactions.filter((t) => t.status !== "paid").length
 
   return (
     <AuthGuard allowedRoles={["admin"]}>
@@ -238,18 +184,6 @@ export default function Dashboard() {
           <div className="top-bar">
             <h1 style={{ margin: 0, fontSize: "1.8rem", color: "#2d5a27" }}>Dashboard</h1>
             <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-              <button
-                className="btn btn-primary"
-                style={{ padding: "8px 16px", fontSize: "14px" }}
-                onClick={() => {
-                  setShowCreditModal(true)
-                  // Refresh credit transactions when opening modal
-                  setTimeout(() => loadCreditTransactions(), 100)
-                }}
-              >
-                <CreditCard size={16} className="inline mr-1" />
-                Credit Management
-              </button>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}> 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{ width: 10, height: 10, borderRadius: 10, background: dbConnected === null ? '#6c757d' : dbConnected ? '#28a745' : '#dc3545' }} />
@@ -281,39 +215,7 @@ export default function Dashboard() {
               <div className="summary-value">{Number(summary.orders || 0).toLocaleString()}</div>
               <div className="summary-label">Orders</div>
             </div>
-            <div className="summary-card">
-              <div className="summary-value" style={{ color: totalCreditBalance > 0 ? "#dc3545" : "#28a745" }}>
-                ₱{totalCreditBalance.toLocaleString()}
-              </div>
-              <div className="summary-label">Outstanding Credit</div>
-            </div>
           </div>
-
-          {totalCreditBalance > 0 && (
-            <div className="card mb-20">
-              <div className="card-header">
-                <h3 className="card-title flex items-center gap-2">
-                  <CreditCard size={20} />
-                  Credit Status Alert
-                </h3>
-              </div>
-              <div style={{ background: "#fff3cd", padding: "15px", borderRadius: "6px", border: "1px solid #ffeaa7" }}>
-                <p style={{ margin: "0 0 10px 0", color: "#856404" }}>
-                  <strong>Outstanding Credit Balance:</strong> ₱{totalCreditBalance.toFixed(2)}
-                </p>
-                <p style={{ margin: "0 0 15px 0", color: "#856404" }}>
-                  <strong>Pending Transactions:</strong> {outstandingCredits} customer(s) with unpaid balances
-                </p>
-                <button
-                  className="btn btn-primary"
-                  style={{ padding: "8px 16px", fontSize: "14px" }}
-                  onClick={() => setShowCreditModal(true)}
-                >
-                  Manage Credit Payments
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* Low Stock Alerts */}
           <div className="card mb-20">
@@ -464,16 +366,6 @@ export default function Dashboard() {
             </div>
           </div>
         </main>
-
-        <CreditManagementModal
-          isOpen={showCreditModal}
-          onClose={() => {
-            setShowCreditModal(false)
-            loadCreditTransactions() // Reload credit transactions when modal closes
-            loadRecentActivities() // Also refresh recent activities
-          }}
-          user={user}
-        />
       </div>
     </AuthGuard>
   )

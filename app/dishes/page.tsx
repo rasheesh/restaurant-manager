@@ -159,7 +159,6 @@ export default function DishesPage() {
 
   // Load categories and items
   useEffect(() => {
-    if (inventoryItems.length === 0) return;
     const userData = localStorage.getItem("user")
     if (!userData) {
       router.push("/")
@@ -215,13 +214,13 @@ export default function DishesPage() {
         setCategories(cats.filter((c: any) => c && c.id && c.name));
       }
     })
-  }, [inventoryItems.length])
+  }, [router])
 
   // Keep localStorage in sync with sidebar state
   useEffect(() => {
     try {
       localStorage.setItem("sidebarCollapsed", JSON.stringify(sidebarCollapsed))
-    } catch {}
+    } catch { }
   }, [sidebarCollapsed])
 
   const calculateIngredientCost = (ingredientName: string, quantity: number, recipeUnit: string) => {
@@ -1063,262 +1062,262 @@ export default function DishesPage() {
                   </button>
                 </div>
               </div>
-          </div>
-        )}
+            </div>
+          )}
 
-        {showModal && selectedDish && (
-          <div
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: "rgba(0,0,0,0.5)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 1000,
-              padding: "20px",
-            }}
-            onClick={() => setShowModal(false)}
-          >
+          {showModal && selectedDish && (
             <div
               style={{
-                background: "white",
-                borderRadius: "8px",
-                padding: "30px",
-                maxWidth: "900px",
-                width: "95%",
-                maxHeight: "90vh",
-                overflow: "auto",
+                position: "fixed",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: "rgba(0,0,0,0.5)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 1000,
+                padding: "20px",
               }}
-              onClick={(e) => e.stopPropagation()}
+              onClick={() => setShowModal(false)}
             >
               <div
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: "20px",
+                  background: "white",
+                  borderRadius: "8px",
+                  padding: "30px",
+                  maxWidth: "900px",
+                  width: "95%",
+                  maxHeight: "90vh",
+                  overflow: "auto",
                 }}
+                onClick={(e) => e.stopPropagation()}
               >
-                <h2 style={{ margin: 0, color: "#2d5a27" }}>{editMode ? "Edit Dish" : "View Dish"}</h2>
-                <button
+                <div
                   style={{
-                    background: "none",
-                    border: "none",
-                    fontSize: "24px",
-                    cursor: "pointer",
-                    color: "#6c757d",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: "20px",
                   }}
-                  onClick={() => setShowModal(false)}
                 >
-                  ×
-                </button>
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-                  gap: "20px",
-                  marginBottom: "30px",
-                }}
-              >
-                <div className="form-group">
-                  <label className="form-label">Dish Name</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    style={{ width: "100%", padding: "12px", fontSize: "14px" }}
-                    value={selectedDish.name}
-                    onChange={(e) => setSelectedDish({ ...selectedDish, name: e.target.value })}
-                    disabled={!editMode}
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Category</label>
-                  <select
-                    className="form-select"
-                    style={{ width: "100%", padding: "12px", fontSize: "14px" }}
-                    value={selectedDish.category}
-                    onChange={(e) => setSelectedDish({ ...selectedDish, category: e.target.value })}
-                    disabled={!editMode}
+                  <h2 style={{ margin: 0, color: "#2d5a27" }}>{editMode ? "Edit Dish" : "View Dish"}</h2>
+                  <button
+                    style={{
+                      background: "none",
+                      border: "none",
+                      fontSize: "24px",
+                      cursor: "pointer",
+                      color: "#6c757d",
+                    }}
+                    onClick={() => setShowModal(false)}
                   >
-                    {(() => {
-                      const dbCategoryNames = categories.map(c => c.name);
-                      const allCategories = [...dishCategories];
-                      categories.forEach(c => {
-                        if (!dishCategories.includes(c.name)) {
-                          allCategories.push(c.name);
-                        }
-                      });
-                      return allCategories.map((category) => (
-                        <option key={category} value={category}>{category}</option>
-                      ));
-                    })()}
-                  </select>
+                    ×
+                  </button>
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Number of Servings</label>
-                  <input
-                    type="number"
-                    className="form-input"
-                    style={{ width: "100%", padding: "12px", fontSize: "14px" }}
-                    value={selectedDish.servings}
-                    onChange={(e) => handleSelectedDishPriceChange("servings", Number.parseInt(e.target.value) || 0)}
-                    disabled={!editMode}
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Selling Price per Serving (₱)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="form-input"
-                    style={{ width: "100%", padding: "12px", fontSize: "14px" }}
-                    value={selectedDish.pricePerServing}
-                    onChange={(e) => handleSelectedDishPriceChange("pricePerServing", Number.parseFloat(e.target.value) || 0)}
-                    disabled={!editMode}
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Recipe Cost (₱)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="form-input"
-                    style={{ width: "100%", padding: "12px", fontSize: "14px" }}
-                    value={selectedDish.cost}
-                    disabled
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Total Selling Price (₱)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="form-input"
-                    style={{ width: "100%", padding: "12px", fontSize: "14px" }}
-                    value={selectedDish.totalSellingPrice}
-                    disabled
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Profit (₱)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="form-input"
-                    style={{ width: "100%", padding: "12px", fontSize: "14px" }}
-                    value={selectedDish.profit}
-                    disabled
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Profit per Serving (₱)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="form-input"
-                    style={{ width: "100%", padding: "12px", fontSize: "14px" }}
-                    value={selectedDish.profitPerServing}
-                    disabled
-                  />
-                </div>
-              </div>
 
-              {editMode && (
-                <div style={{ marginBottom: "30px" }}>
-                  <h3 style={{ marginBottom: "15px", color: "#2d5a27" }}>Ingredients</h3>
-                  {selectedDish.ingredients.map((ingredient, index) => (
-                    <div key={index} style={{ display: "flex", gap: "10px", marginBottom: "10px", alignItems: "center" }}>
-                      <select
-                        className="form-select"
-                        style={{ flex: 1, padding: "8px", fontSize: "14px" }}
-                        value={ingredient.name}
-                        onChange={(e) => handleIngredientChange(index, "name", e.target.value)}
-                      >
-                        <option value="">Select ingredient</option>
-                        {inventoryItems.map((item) => (
-                          <option key={item.name} value={item.name}>{item.name}</option>
-                        ))}
-                      </select>
-                      <input
-                        type="number"
-                        step="0.01"
-                        placeholder="Quantity"
-                        className="form-input"
-                        style={{ width: "100px", padding: "8px", fontSize: "14px" }}
-                        value={ingredient.quantity}
-                        onChange={(e) => handleIngredientChange(index, "quantity", Number.parseFloat(e.target.value) || 0)}
-                      />
-                      <select
-                        className="form-select"
-                        style={{ width: "80px", padding: "8px", fontSize: "14px" }}
-                        value={ingredient.unit}
-                        onChange={(e) => handleIngredientChange(index, "unit", e.target.value)}
-                      >
-                        {measurementUnits.map((unit) => (
-                          <option key={unit} value={unit}>{unit}</option>
-                        ))}
-                      </select>
-                      <input
-                        type="number"
-                        step="0.01"
-                        placeholder="Cost"
-                        className="form-input"
-                        style={{ width: "100px", padding: "8px", fontSize: "14px" }}
-                        value={ingredient.cost}
-                        disabled
-                      />
-                      <button
-                        className="btn btn-danger"
-                        style={{ padding: "8px" }}
-                        onClick={() => {
-                          const updatedIngredients = selectedDish.ingredients.filter((_, i) => i !== index)
-                          setSelectedDish({ ...selectedDish, ingredients: updatedIngredients })
-                        }}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                    gap: "20px",
+                    marginBottom: "30px",
+                  }}
+                >
+                  <div className="form-group">
+                    <label className="form-label">Dish Name</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      style={{ width: "100%", padding: "12px", fontSize: "14px" }}
+                      value={selectedDish.name}
+                      onChange={(e) => setSelectedDish({ ...selectedDish, name: e.target.value })}
+                      disabled={!editMode}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Category</label>
+                    <select
+                      className="form-select"
+                      style={{ width: "100%", padding: "12px", fontSize: "14px" }}
+                      value={selectedDish.category}
+                      onChange={(e) => setSelectedDish({ ...selectedDish, category: e.target.value })}
+                      disabled={!editMode}
+                    >
+                      {(() => {
+                        const dbCategoryNames = categories.map(c => c.name);
+                        const allCategories = [...dishCategories];
+                        categories.forEach(c => {
+                          if (!dishCategories.includes(c.name)) {
+                            allCategories.push(c.name);
+                          }
+                        });
+                        return allCategories.map((category) => (
+                          <option key={category} value={category}>{category}</option>
+                        ));
+                      })()}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Number of Servings</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      style={{ width: "100%", padding: "12px", fontSize: "14px" }}
+                      value={selectedDish.servings}
+                      onChange={(e) => handleSelectedDishPriceChange("servings", Number.parseInt(e.target.value) || 0)}
+                      disabled={!editMode}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Selling Price per Serving (₱)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="form-input"
+                      style={{ width: "100%", padding: "12px", fontSize: "14px" }}
+                      value={selectedDish.pricePerServing}
+                      onChange={(e) => handleSelectedDishPriceChange("pricePerServing", Number.parseFloat(e.target.value) || 0)}
+                      disabled={!editMode}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Recipe Cost (₱)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="form-input"
+                      style={{ width: "100%", padding: "12px", fontSize: "14px" }}
+                      value={selectedDish.cost}
+                      disabled
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Total Selling Price (₱)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="form-input"
+                      style={{ width: "100%", padding: "12px", fontSize: "14px" }}
+                      value={selectedDish.totalSellingPrice}
+                      disabled
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Profit (₱)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="form-input"
+                      style={{ width: "100%", padding: "12px", fontSize: "14px" }}
+                      value={selectedDish.profit}
+                      disabled
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Profit per Serving (₱)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="form-input"
+                      style={{ width: "100%", padding: "12px", fontSize: "14px" }}
+                      value={selectedDish.profitPerServing}
+                      disabled
+                    />
+                  </div>
+                </div>
+
+                {editMode && (
+                  <div style={{ marginBottom: "30px" }}>
+                    <h3 style={{ marginBottom: "15px", color: "#2d5a27" }}>Ingredients</h3>
+                    {selectedDish.ingredients.map((ingredient, index) => (
+                      <div key={index} style={{ display: "flex", gap: "10px", marginBottom: "10px", alignItems: "center" }}>
+                        <select
+                          className="form-select"
+                          style={{ flex: 1, padding: "8px", fontSize: "14px" }}
+                          value={ingredient.name}
+                          onChange={(e) => handleIngredientChange(index, "name", e.target.value)}
+                        >
+                          <option value="">Select ingredient</option>
+                          {inventoryItems.map((item) => (
+                            <option key={item.name} value={item.name}>{item.name}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="Quantity"
+                          className="form-input"
+                          style={{ width: "100px", padding: "8px", fontSize: "14px" }}
+                          value={ingredient.quantity}
+                          onChange={(e) => handleIngredientChange(index, "quantity", Number.parseFloat(e.target.value) || 0)}
+                        />
+                        <select
+                          className="form-select"
+                          style={{ width: "80px", padding: "8px", fontSize: "14px" }}
+                          value={ingredient.unit}
+                          onChange={(e) => handleIngredientChange(index, "unit", e.target.value)}
+                        >
+                          {measurementUnits.map((unit) => (
+                            <option key={unit} value={unit}>{unit}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="Cost"
+                          className="form-input"
+                          style={{ width: "100px", padding: "8px", fontSize: "14px" }}
+                          value={ingredient.cost}
+                          disabled
+                        />
+                        <button
+                          className="btn btn-danger"
+                          style={{ padding: "8px" }}
+                          onClick={() => {
+                            const updatedIngredients = selectedDish.ingredients.filter((_, i) => i !== index)
+                            setSelectedDish({ ...selectedDish, ingredients: updatedIngredients })
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => setSelectedDish({
+                        ...selectedDish,
+                        ingredients: [...selectedDish.ingredients, { name: "", quantity: 0, unit: "", cost: 0 }]
+                      })}
+                    >
+                      Add Ingredient
+                    </button>
+                  </div>
+                )}
+
+                <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
                   <button
                     className="btn btn-secondary"
-                    onClick={() => setSelectedDish({
-                      ...selectedDish,
-                      ingredients: [...selectedDish.ingredients, { name: "", quantity: 0, unit: "", cost: 0 }]
-                    })}
+                    onClick={() => setShowModal(false)}
                   >
-                    Add Ingredient
+                    Close
                   </button>
+                  {editMode && (
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleSaveDish}
+                    >
+                      Save Changes
+                    </button>
+                  )}
                 </div>
-              )}
-
-              <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => setShowModal(false)}
-                >
-                  Close
-                </button>
-                {editMode && (
-                  <button
-                    className="btn btn-primary"
-                    onClick={handleSaveDish}
-                  >
-                    Save Changes
-                  </button>
-                )}
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-      </main>
-    </div>
-  </AuthGuard>
-)
+        </main>
+      </div>
+    </AuthGuard>
+  )
 }
