@@ -6,7 +6,6 @@ import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import "./globals.css"
 import RouteProgress from "../components/route-progress"
-import SidebarSync from "../src/components/layout/SidebarSync"
 
 export const metadata: Metadata = {
   title: "Food Business POS - Filipino Food Business Management",
@@ -22,7 +21,6 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${GeistSans.variable} ${GeistMono.variable}`}>
-        <SidebarSync />
         <RouteProgress />
         <Suspense fallback={null}>{children}</Suspense>
         <Analytics />

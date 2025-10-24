@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import AuthGuard from "../../../components/auth/auth-guard"
-import Sidebar from "../../../components/layout/sidebar"
+import Sidebar from "../../../components/layout/new-sidebar"
 
 export default function SystemSettings() {
   const [mounted, setMounted] = useState(false)

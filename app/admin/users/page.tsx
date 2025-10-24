@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import AuthGuard from "../../../components/auth/auth-guard"
-import Sidebar from "../../../components/layout/sidebar"
+import Sidebar from "../../../components/layout/new-sidebar"
 
 interface User {
   id: string
